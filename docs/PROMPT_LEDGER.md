@@ -22,7 +22,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-002 | 2026-05-25 | Windows-aware tarball install on P:/projects/orbit-ops | [deprecated] superseded by 003 | — |
 | p-orb-ops-003 | 2026-05-25 | Create scaffold from scratch, push, verify stack | Partial (steps 1–9 succeeded, step 10 failed on broken Grafana plugin) | d6bd32c |
 | p-orb-ops-004 | 2026-05-25 | Remove broken Grafana DuckDB plugin from docker-compose, verify stack | ✓ Complete | c87d5b4 |
-| p-orb-ops-005 | 2026-05-25 | Create this prompt ledger document | ✓ Complete | 5aebbe9 |
+| p-orb-ops-005 | 2026-05-25 | Create this prompt ledger document | ✓ Complete | 7a1b485 |
 
 ## Notes
 
