@@ -14,12 +14,13 @@ and a failing test. Fill it in.
 
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
-from enum import Enum
+from datetime import UTC, datetime, timedelta
+from enum import StrEnum
 
 
-class ClockMode(str, Enum):
+class ClockMode(StrEnum):
     FAST = "fast"
     REALTIME = "realtime"
 
@@ -56,6 +57,8 @@ class SimClock:
             raise ValueError("speedup must be > 0")
         self._now = self.start
         self._tick_count = 0
+        self._wall_start: float | None = None
+        self._wall_per_tick: float = self.tick_seconds / self.speedup
 
     @property
     def now(self) -> datetime:
@@ -69,16 +72,30 @@ class SimClock:
     def tick(self) -> datetime:
         """Advance one tick. Returns the new sim time.
 
-        In FAST mode this is just arithmetic. In REALTIME mode this sleeps
-        ``tick_seconds / speedup`` wall-seconds before returning.
-
-        TODO(day 1): implement REALTIME sleep behavior.
+        FAST mode: pure arithmetic, no sleep.
+        REALTIME mode: sleeps until the tick's wall-clock deadline. The
+        deadline is anchored at the first tick and advances by
+        ``tick_seconds / speedup`` per tick, so work done between ticks
+        eats into the sleep budget instead of adding to the wall time.
+        If a tick overruns its budget, sleep is skipped — the clock
+        will never run faster than realtime, but it can lag.
         """
         self._now = self._now + timedelta(seconds=self.tick_seconds)
         self._tick_count += 1
+
+        if self.mode is ClockMode.REALTIME:
+            if self._wall_start is None:
+                # First tick: anchor wall clock at "one tick ago" so the
+                # deadline for this tick is "now" — no sleep on tick 1.
+                self._wall_start = time.perf_counter() - self._wall_per_tick
+            deadline = self._wall_start + self._tick_count * self._wall_per_tick
+            remaining = deadline - time.perf_counter()
+            if remaining > 0:
+                time.sleep(remaining)
+
         return self._now
 
     @classmethod
     def utc_now_start(cls, **kwargs: object) -> SimClock:
         """Convenience: start a clock at the current wall-clock UTC."""
-        return cls(start=datetime.now(timezone.utc), **kwargs)  # type: ignore[arg-type]
+        return cls(start=datetime.now(UTC), **kwargs)  # type: ignore[arg-type]
