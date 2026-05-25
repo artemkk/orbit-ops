@@ -24,6 +24,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-004 | 2026-05-25 | Remove broken Grafana DuckDB plugin from docker-compose, verify stack | ✓ Complete | c87d5b4 |
 | p-orb-ops-005 | 2026-05-25 | Create this prompt ledger document | ✓ Complete | 7a1b485 |
 | p-orb-ops-006 | 2026-05-25 | Implement SimClock REALTIME mode with deadline-based scheduling | ✓ Complete | 79ebba6 |
+| p-orb-ops-007 | 2026-05-25 | Skyfield-backed Satellite class with physics-grounded tests | ✓ Complete | e6bdf34 |
 
 ## Notes
 
@@ -44,6 +45,16 @@ Removed the Grafana DuckDB plugin reference. Plugin will be re-added in Sprint 3
 Implemented REALTIME mode using deadline-based scheduling rather than naive sleep-after-tick. The deadline anchors on the first tick and advances by `tick_seconds / speedup` per tick, so work done between ticks (physics, Kafka publish, etc.) eats into the sleep budget instead of accumulating drift. If a tick overruns its budget, sleep is skipped — the clock never runs faster than realtime, but can lag under load. This is the same pattern used by game loops and trading simulators.
 
 Three new tests guard the contract: speedup scaling, drift absorption (50ms work + 50ms sleep budget completes in ~1s, not ~1.5s), and overrun behavior (clock lags but never compensates by running faster). The original xfail test now passes normally.
+
+### p-orb-ops-007
+
+Implemented Satellite class wrapping Skyfield's EarthSatellite. Returns a frozen SatelliteState dataclass per tick with position/velocity in ECI (GCRS) (km, km/s), sun vector in ECI (unit), eclipse flag, and geodetic sub-satellite point. Frames are documented in the module docstring -- position/velocity in ECI because that's Skyfield's native frame and the sun-vector dot product needs inertial coordinates; geodetic sub-satellite point for ground-track work.
+
+Frame correction from the original prompt: the prompt labeled position/velocity as ECEF, but Skyfield's `EarthSatellite.at(t)` returns GCRS (ECI). Fields renamed from `position_ecef_km` to `position_eci_km` and `velocity_ecef_km_s` to `velocity_eci_km_s` with updated docstrings. ECEF conversion deferred until a component actually needs it.
+
+TLE source: Planet Labs (Celestrak `planet` group). SkySats are the primary subject -- sun-synchronous LEO, similar bus class to York's S-class. ~20 active birds gives us the constellation size we want without needing to hand-pick.
+
+Tests are physics-grounded, not "did it return": LEO position magnitude (6700-7200 km from Earth center), sub-satellite altitude (300-800 km), sun vector unit-length, latitude stays within inclination band and swings >90 deg per orbit, eclipse fraction sits in the 0-45% sane envelope for sun-sync. Frame errors would cause these to fail loudly.
 
 ## Conventions for future prompts
 
