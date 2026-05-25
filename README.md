@@ -39,6 +39,15 @@ TLEs (Celestrak) ──► Sim (Skyfield + subsystem models)
                      Grafana (fleet → sat → subsystem drilldown)
 ```
 
+## Telemetry sample
+
+One SkySat propagated over ~3 orbits. Battery state-of-charge and bus
+temperature respond to eclipse passages (shaded). The coupling is
+emergent — nothing in the EPS or thermal code explicitly says "go down
+in eclipse"; that pattern falls out of the physics.
+
+![Orbit eclipse response](docs/figures/orbit_eclipse.png)
+
 ## Design decisions
 
 To be filled in as decisions are made and defended. Sections planned:

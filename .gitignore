@@ -55,3 +55,6 @@ logs/
 
 # Docker
 .docker/
+
+# Skyfield ephemeris (auto-downloaded on first run, ~17 MB)
+*.bsp
