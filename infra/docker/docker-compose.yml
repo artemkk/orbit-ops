@@ -78,7 +78,7 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
-      GF_INSTALL_PLUGINS: motherduck-duckdb-datasource
+      # DuckDB datasource plugin added in Sprint 3 (requires unsigned-plugin setup)
     ports:
       - "3000:3000"
     volumes:
