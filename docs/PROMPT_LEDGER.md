@@ -25,6 +25,10 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-005 | 2026-05-25 | Create this prompt ledger document | ✓ Complete | 7a1b485 |
 | p-orb-ops-006 | 2026-05-25 | Implement SimClock REALTIME mode with deadline-based scheduling | ✓ Complete | 79ebba6 |
 | p-orb-ops-007 | 2026-05-25 | Skyfield-backed Satellite class with physics-grounded tests | ✓ Complete | e6bdf34 |
+| p-orb-ops-008 | 2026-05-25 | EPS + thermal subsystem models with eclipse-driven behavior | Partial (code written, tests failed on params) | uncommitted |
+| p-orb-ops-009 | 2026-05-25 | Rebalance EPS and thermal parameters; tests green | Partial (power balance fixed, thermal swing still too large) | uncommitted |
+| p-orb-ops-010 | 2026-05-25 | Add Earth IR to thermal model; all tests green | Partial (swing reduced 43.5 K -> 36.2 K, still above 30 K) | uncommitted |
+| p-orb-ops-011 | 2026-05-25 | Reduce thermal radiating area to MLI-effective value | ✓ Complete | afdf3dc |
 
 ## Notes
 
@@ -55,6 +59,20 @@ Frame correction from the original prompt: the prompt labeled position/velocity 
 TLE source: Planet Labs (Celestrak `planet` group). SkySats are the primary subject -- sun-synchronous LEO, similar bus class to York's S-class. ~20 active birds gives us the constellation size we want without needing to hand-pick.
 
 Tests are physics-grounded, not "did it return": LEO position magnitude (6700-7200 km from Earth center), sub-satellite altitude (300-800 km), sun vector unit-length, latitude stays within inclination band and swings >90 deg per orbit, eclipse fraction sits in the 0-45% sane envelope for sun-sync. Frame errors would cause these to fail loudly.
+
+### p-orb-ops-008 / 009 / 010 / 011 (thermal parameter correction sequence)
+
+First internal-state subsystems: electrical power and thermal. Both implement a common pattern of `(SatelliteState, prev_state, dt) -> (next_state, telemetry)`, integrated with forward Euler. Parameters live in `subsystem_params.py` with citations or labeled estimates.
+
+The invariant test suite caught three physics gaps over four prompts:
+
+- **p-orb-ops-008**: array_efficiency 0.28 was raw cell efficiency, not orbit-averaged system efficiency. Bus loads 35/25 W were idle, not operational. Fixed in p-orb-ops-009 (0.15, 90/60 W).
+- **p-orb-ops-009**: thermal model omitted Earth infrared emission (~240 W/m^2 upward, view factor ~0.30 at 500 km). Added in p-orb-ops-010 as `earth_ir_w = 100 W` with Gilmore citation.
+- **p-orb-ops-010**: radiating_area_m2 = 2.5 treated the bus as fully exposed, but MLI blankets suppress radiation from ~80% of the surface. Reduced to 1.2 m^2 in p-orb-ops-011 with Gilmore citation.
+
+Each step was driven by an invariant-test failure that named a specific physics gap. This is the test framework earning its keep: every gap surfaced, named, cited, and fixed in the open.
+
+The committed plot `docs/figures/orbit_eclipse.png` shows the final result: SoC sawtooths and temperature dips during shaded eclipse regions, with no code explicitly orchestrating that behavior -- it emerges from the physics.
 
 ## Conventions for future prompts
 
