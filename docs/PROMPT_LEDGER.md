@@ -29,6 +29,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-009 | 2026-05-25 | Rebalance EPS and thermal parameters; tests green | Partial (power balance fixed, thermal swing still too large) | uncommitted |
 | p-orb-ops-010 | 2026-05-25 | Add Earth IR to thermal model; all tests green | Partial (swing reduced 43.5 K -> 36.2 K, still above 30 K) | uncommitted |
 | p-orb-ops-011 | 2026-05-25 | Reduce thermal radiating area to MLI-effective value | ✓ Complete | afdf3dc |
+| p-orb-ops-012 | 2026-05-25 | Commit subsystem code, lockfile, README; gitignore ephemeris | ✓ Complete | 043b258 |
 
 ## Notes
 
@@ -73,6 +74,12 @@ The invariant test suite caught three physics gaps over four prompts:
 Each step was driven by an invariant-test failure that named a specific physics gap. This is the test framework earning its keep: every gap surfaced, named, cited, and fixed in the open.
 
 The committed plot `docs/figures/orbit_eclipse.png` shows the final result: SoC sawtooths and temperature dips during shaded eclipse regions, with no code explicitly orchestrating that behavior -- it emerges from the physics.
+
+### p-orb-ops-012
+
+Cleanup commit. p-orb-ops-008 stopped at a test failure before its commit step; prompts 009-011 then iterated on parameter values and only committed `subsystem_params.py` plus the PNG. The actual implementation files (`subsystems.py`, `test_subsystems.py`, `plot_orbit_eclipse.py`) sat uncommitted on disk for three prompts. Also landed `uv.lock` (should have been in the original scaffold for reproducibility), gitignored `*.bsp` (Skyfield's auto-downloaded ephemeris, ~17 MB binary), and added the README "Telemetry sample" section from p-orb-ops-008's original spec.
+
+Process lesson: when a prompt stops at a failure, its already-written-but-uncommitted files are easy to lose track of across follow-up prompts. Future prompts that fix a stopped predecessor should either (a) include the predecessor's pending commit in their commit step, or (b) explicitly defer it and note the deferral. This wasn't caught for three iterations because the focus was on the parameter values, not the file inventory.
 
 ## Conventions for future prompts
 
