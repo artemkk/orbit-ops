@@ -1,0 +1,57 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.venv/
+venv/
+.python-version
+
+# uv
+.uv/
+
+# Testing
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.mypy_cache/
+.ruff_cache/
+
+# dbt
+dbt/orbit_ops/target/
+dbt/orbit_ops/dbt_packages/
+dbt/orbit_ops/logs/
+profiles.yml
+
+# Data (keep TLE inputs; ignore generated artifacts)
+data/parquet/
+data/duckdb/
+data/checkpoints/
+*.duckdb
+*.duckdb.wal
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+.DS_Store
+
+# Logs
+*.log
+logs/
+
+# Docker
+.docker/

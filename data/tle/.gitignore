@@ -1,0 +1,4 @@
+# TLE data fetched by scripts/fetch_tles.py
+# Refresh with: make tle
+*.tle
+!.gitkeep
