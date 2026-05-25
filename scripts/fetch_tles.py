@@ -1,8 +1,8 @@
-"""Fetch current TLEs from Celestrak for the constellation we'll simulate.
+"""Fetch current TLEs from Celestrak for the constellation we simulate.
 
-Day 2 chooses which catalog (e.g., Planet SkySat, Spire LEMUR) to base the
-sim on. For now this fetches the Active Satellites set as a placeholder so
-the script is exercised by `make tle`.
+We target Planet Labs SkySat: small Earth-observation LEO sats in
+sun-synchronous orbit. Similar bus class to York's S-class smallsats,
+constellation size ~20 birds -- close to our 10-20 target.
 """
 
 from __future__ import annotations
@@ -11,15 +11,15 @@ import sys
 import urllib.request
 from pathlib import Path
 
-CELESTRAK_ACTIVE = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
+CELESTRAK_SKYSAT = "https://celestrak.org/NORAD/elements/gp.php?GROUP=planet&FORMAT=tle"
 
-OUT = Path(__file__).resolve().parent.parent / "data" / "tle" / "active.tle"
+OUT = Path(__file__).resolve().parent.parent / "data" / "tle" / "planet.tle"
 
 
 def main() -> int:
     OUT.parent.mkdir(parents=True, exist_ok=True)
-    print(f"Fetching TLEs from {CELESTRAK_ACTIVE}", file=sys.stderr)
-    with urllib.request.urlopen(CELESTRAK_ACTIVE, timeout=30) as resp:
+    print(f"Fetching TLEs from {CELESTRAK_SKYSAT}", file=sys.stderr)
+    with urllib.request.urlopen(CELESTRAK_SKYSAT, timeout=30) as resp:
         data = resp.read()
     OUT.write_bytes(data)
     n_lines = data.decode().count("\n")
