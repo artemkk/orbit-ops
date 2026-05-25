@@ -23,6 +23,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-003 | 2026-05-25 | Create scaffold from scratch, push, verify stack | Partial (steps 1–9 succeeded, step 10 failed on broken Grafana plugin) | d6bd32c |
 | p-orb-ops-004 | 2026-05-25 | Remove broken Grafana DuckDB plugin from docker-compose, verify stack | ✓ Complete | c87d5b4 |
 | p-orb-ops-005 | 2026-05-25 | Create this prompt ledger document | ✓ Complete | 7a1b485 |
+| p-orb-ops-006 | 2026-05-25 | Implement SimClock REALTIME mode with deadline-based scheduling | ✓ Complete | 79ebba6 |
 
 ## Notes
 
@@ -37,6 +38,12 @@ Steps 1–9 (scaffold creation, GitHub push, uv sync, test suite green) all succ
 ### p-orb-ops-004
 
 Removed the Grafana DuckDB plugin reference. Plugin will be re-added in Sprint 3 (dashboards) with the proper unsigned-plugin install workflow. Until then, Grafana boots cleanly and the Test Data datasource is sufficient for verifying the stack.
+
+### p-orb-ops-006
+
+Implemented REALTIME mode using deadline-based scheduling rather than naive sleep-after-tick. The deadline anchors on the first tick and advances by `tick_seconds / speedup` per tick, so work done between ticks (physics, Kafka publish, etc.) eats into the sleep budget instead of accumulating drift. If a tick overruns its budget, sleep is skipped — the clock never runs faster than realtime, but can lag under load. This is the same pattern used by game loops and trading simulators.
+
+Three new tests guard the contract: speedup scaling, drift absorption (50ms work + 50ms sleep budget completes in ~1s, not ~1.5s), and overrun behavior (clock lags but never compensates by running faster). The original xfail test now passes normally.
 
 ## Conventions for future prompts
 
