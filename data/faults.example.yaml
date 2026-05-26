@@ -1,28 +1,40 @@
 # Example fault configuration. Copy to `data/faults.yaml` to activate.
 #
 # Each fault has:
-#   sat_id:     satellite name (must match a TLE-derived sat name, e.g. "SKYSAT-1")
+#   sat_id:     satellite name (must match a TLE-derived sat name, e.g. "SKYSAT-A")
 #   fault_type: one of [battery_capacity_fade, stuck_temperature_sensor, thermal_runaway]
 #   start_iso:  sim-time at which the fault becomes active (UTC ISO 8601)
 #   params:     fault-specific parameters (see src/orbit_ops/sim/faults.py)
+#
+# The sat_id values below reference satellites in the current Celestrak
+# `planet` TLE group at the time of writing. Celestrak's group composition
+# changes over time as Planet retires and launches satellites. If these
+# names no longer match your TLE file, run:
+#
+#   uv run python -c "from orbit_ops.sim.satellite import load_tle_file; \
+#     from pathlib import Path; \
+#     print([n for n, _, _ in load_tle_file(Path('data/tle/planet.tle')) \
+#            if 'SKYSAT' in n.upper()])"
+#
+# and substitute three names that are present.
 
 faults:
-  # SKYSAT-1: battery cells degrading at 2% per sim-day from this moment
-  - sat_id: "SKYSAT-1"
+  # SKYSAT-A: battery cells degrading at 2% per sim-day from this moment
+  - sat_id: "SKYSAT-A"
     fault_type: "battery_capacity_fade"
     start_iso: "2026-05-01T00:00:00+00:00"
     params:
       fade_rate_per_day: 0.02
       floor: 0.6
 
-  # SKYSAT-3: temperature sensor freezes 90 minutes in (one orbit later)
-  - sat_id: "SKYSAT-3"
+  # SKYSAT-C9: temperature sensor freezes 90 minutes in (one orbit later)
+  - sat_id: "SKYSAT-C9"
     fault_type: "stuck_temperature_sensor"
     start_iso: "2026-05-01T01:30:00+00:00"
     params: {}
 
-  # SKYSAT-5: heater stuck on, 2 K/hr bias capping at 40 K above nominal
-  - sat_id: "SKYSAT-5"
+  # SKYSAT-C13: heater stuck on, 2 K/hr bias capping at 40 K above nominal
+  - sat_id: "SKYSAT-C13"
     fault_type: "thermal_runaway"
     start_iso: "2026-05-01T02:00:00+00:00"
     params:
