@@ -119,8 +119,12 @@ class StuckSensorDetector:
     sat_id: str
     thermal_mass_j_per_k: float = 110.0 * 900.0
     """m * c for the bus. Defaults to SkySat-class values from subsystem_params."""
-    residual_threshold_k: float = 2.0
-    """Per-minute residual threshold (K) for firing detection."""
+    residual_threshold_k: float = 0.05
+    """Per-minute residual threshold (K). Calibrated against SkySat-class
+    thermal mass (110 kg x 900 J/kg/K = 99,000 J/K), which yields nominal
+    per-minute dT ~ 0.006 K under typical net heat flows. 0.05 K is ~8x
+    the nominal signal floor, suppressing noise while matching the physics
+    scale."""
     consecutive_minutes_required: int = 5
     """Number of consecutive minutes above threshold before firing.
     Suppresses false positives from numerical noise."""

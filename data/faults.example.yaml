@@ -17,6 +17,12 @@
 #            if 'SKYSAT' in n.upper()])"
 #
 # and substitute three names that are present.
+#
+# Note: parameter scales below are calibrated for demo visibility (6-hour
+# window). Real operational fault injection would use smaller rates that
+# exercise the detectors over days. The detection method choice is
+# independent of these scales; the detectors fire on the *shape* of the
+# signal regardless of magnitude.
 
 faults:
   # SKYSAT-A: battery cells degrading at 2% per sim-day from this moment
@@ -24,7 +30,7 @@ faults:
     fault_type: "battery_capacity_fade"
     start_iso: "2026-05-01T00:00:00+00:00"
     params:
-      fade_rate_per_day: 0.02
+      fade_rate_per_day: 0.40
       floor: 0.6
 
   # SKYSAT-C9: temperature sensor freezes 90 minutes in (one orbit later)
@@ -38,5 +44,5 @@ faults:
     fault_type: "thermal_runaway"
     start_iso: "2026-05-01T02:00:00+00:00"
     params:
-      rate_k_per_hour: 2.0
+      rate_k_per_hour: 3.5
       cap_k: 40.0
