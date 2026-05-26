@@ -7,6 +7,7 @@ confusion-matrix + latency figure.
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from pathlib import Path
 
@@ -21,6 +22,19 @@ from orbit_ops.detection.runner import run_detection  # noqa: E402
 from orbit_ops.sim.faults import FaultRegistry  # noqa: E402
 
 
+def _duckdb_settings_from_env() -> dict[str, str]:
+    """Build DuckDB S3 settings from MINIO_* env vars."""
+    endpoint = os.environ.get("MINIO_ENDPOINT", "http://localhost:9000")
+    endpoint_clean = endpoint.replace("http://", "").replace("https://", "")
+    return {
+        "s3_url_style": "path",
+        "s3_endpoint": endpoint_clean,
+        "s3_access_key_id": os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
+        "s3_secret_access_key": os.environ.get("MINIO_SECRET_KEY", "minioadmin"),
+        "s3_use_ssl": "false",
+    }
+
+
 def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--marts-glob", required=True, help="Glob for sat_minute_rollup parquet files.")
@@ -33,7 +47,8 @@ def main() -> int:
     args = parser.parse_args()
 
     faults = FaultRegistry.from_yaml(Path(args.faults_yaml))
-    events, stats = run_detection(args.marts_glob)
+    settings = _duckdb_settings_from_env() if args.marts_glob.startswith("s3://") else None
+    events, stats = run_detection(args.marts_glob, duckdb_settings=settings)
     scorecards = evaluate(events, faults)
 
     print(f"Processed {stats.rows_consumed} rows across {stats.sats_processed} sats", file=sys.stderr)

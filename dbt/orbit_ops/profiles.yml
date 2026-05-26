@@ -5,8 +5,9 @@ orbit_ops:
   outputs:
     dev:
       type: duckdb
-      # In-memory by default; switch to a file path for persistent dev work.
-      path: "{{ env_var('DBT_DUCKDB_PATH', ':memory:') }}"
+      # File-based so state persists across dbt run + dbt test invocations.
+      # Already gitignored via *.duckdb pattern.
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'dev.duckdb') }}"
       extensions:
         - httpfs
         - parquet
