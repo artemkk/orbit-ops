@@ -46,6 +46,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-026 | 2026-05-26 | Detector calibration: stuck-sensor 0.3 K, runaway 8 K/hr | Partial (1/3 TP, 0 FP) | 1faeb31 |
 | p-orb-ops-027 | 2026-05-26 | Extend demo to 24h; restore operationally-defensible parameters | ✓ Complete | b6af173 |
 | p-orb-ops-028 | 2026-05-26 | Stage Anki deck and practice regimen (gitignored) | ✓ Complete | d1cc995 |
+| p-orb-ops-029 | 2026-05-26 | Save revised study plan to docs/STUDY_PLAN.md (gitignored) | ✓ Complete | 5b2eaa9 |
 
 ## Notes
 
@@ -287,6 +288,10 @@ This is a real characteristic of the modeled system, not a bug. The detector cor
 ### p-orb-ops-028
 
 Personal interview prep materials staged at docs/anki/ (gitignored alongside docs/INTERVIEW_PREP.md). 121-card Anki deck across seven categories (domain, architecture, stack, detection, debugging, process, pitch), import instructions, and a three-phase practice regimen for the weeks leading into the interview.
+
+### p-orb-ops-029
+
+Personal study plan saved to docs/STUDY_PLAN.md (gitignored). Replaces earlier multi-tier prep plans. Lives on disk only alongside docs/INTERVIEW_PREP.md and docs/anki/. The plan focuses on four leverage points: daily Anki with verbal recall, project-doc reading, hands-on demo runs, verbal articulation drills. Cuts preemptive reading of external tool docs and domain primers as low-yield.
 
 ## Conventions for future prompts
 
