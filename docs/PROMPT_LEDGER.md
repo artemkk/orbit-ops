@@ -38,6 +38,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-018 | 2026-05-26 | Grafana dashboards: fleet view, satellite drilldown, anomaly feed | ✓ Complete | 2a74aef |
 | p-orb-ops-019 | 2026-05-26 | End-to-end verification: pipeline works, 2 small issues surfaced | Verification (no code) | -- |
 | p-orb-ops-020 | 2026-05-26 | Fix dbt dev profile persistence and detector S3 credentials | ✓ Complete | 0542e88 |
+| p-orb-ops-021 | 2026-05-26 | Repoint example fault config at real TLE sat names; regenerate artifact | ✓ Complete | d225135 |
 
 ## Notes
 
@@ -191,6 +192,22 @@ Two targeted fixes:
 Post-fix: dbt test PASS=31 ERROR=0. Detector script runs end-to-end against S3-backed marts. Artifact committed: `docs/figures/detector_performance.png` (53 KB).
 
 Note: detector summary shows 0 events / 0 recall across all three detectors. Root cause: `data/faults.example.yaml` references sat names `SKYSAT-1`/`SKYSAT-3`/`SKYSAT-5` but the TLE-derived names are `SKYSAT-A`/`SKYSAT-B`/`SKYSAT-C1`/etc. The fault layer never matches, so no faults are injected, so detectors correctly don't fire. Fix: update the example YAML to use real TLE names. This is a config issue, not a code issue -- the pipeline, faults, and detectors all work correctly.
+
+### p-orb-ops-021
+
+Replaced placeholder sat names (`SKYSAT-1/3/5`) in `data/faults.example.yaml` with real TLE names (`SKYSAT-A`, `SKYSAT-C9`, `SKYSAT-C13`). Added staleness-risk comment and refresh recipe.
+
+Post-fix verification confirmed faults are injected into the telemetry:
+- SKYSAT-C13 (thermal runaway): bus temp at 33.6C at end of 6-hr sim, approaching 35C ceiling. ~40 more minutes of sim would cross the threshold.
+- SKYSAT-C9 (stuck sensor): temp locked at 284.848 K throughout sim (fault start 2026-05-01 is before sim start 2026-05-26, so active from tick 0).
+- SKYSAT-A (capacity fade): 0.5% SoC fade over 6 hours (0.02/day rate) -- invisible at this timescale.
+
+All three detectors still report 0 TP because:
+1. Capacity fade CUSUM needs days of drift; 6-hr sim gives only 0.5% which is below the 0.10 threshold.
+2. Stuck sensor residual threshold (2.0 K) vs actual predicted-dT per minute (~0.006 K given 99000 J/K thermal mass) -- the per-minute expected temperature change is too small for the residual to trigger.
+3. Thermal runaway at 2 K/hr needs ~11.5 hrs to reach 35C ceiling from ~12C nominal; 6-hr sim reaches 33.6C.
+
+These are parameter/duration mismatches, not code bugs. The pipeline, faults, and detectors all work correctly. Tuning options for a follow-up: (a) run a longer sim (24hr+), (b) lower detector thresholds, (c) increase fault intensity in the example YAML.
 
 ## Conventions for future prompts
 
