@@ -62,5 +62,6 @@ logs/
 # User-local fault config (created from .example.yaml on demand)
 data/faults.yaml
 
-# Interview prep notes (private, not part of the public repo)
+# Personal interview prep — not for public visibility
 docs/INTERVIEW_PREP.md
+docs/anki/
