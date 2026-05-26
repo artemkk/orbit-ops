@@ -17,6 +17,7 @@ from typing import Protocol
 
 from orbit_ops.pipeline.messages import TelemetryRecord
 from orbit_ops.sim.constellation import Constellation
+from orbit_ops.sim.faults import FaultRegistry
 
 log = logging.getLogger(__name__)
 
@@ -93,9 +94,16 @@ class ProducerStats:
 class ConstellationProducer:
     """Drives a Constellation forward, publishing one message per (sat, tick)."""
 
-    def __init__(self, constellation: Constellation, sink: MessageSink) -> None:
+    def __init__(
+        self,
+        constellation: Constellation,
+        sink: MessageSink,
+        *,
+        faults: FaultRegistry | None = None,
+    ) -> None:
         self._con = constellation
         self._sink = sink
+        self._faults = faults or FaultRegistry()
         self._stats = ProducerStats()
         self._stop_requested = False
 
@@ -140,6 +148,7 @@ class ConstellationProducer:
         results = self._con.tick()
         sat_ids = self._con.sat_ids
         for sat_id, tr in zip(sat_ids, results, strict=True):
+            tr = self._faults.apply(sat_id, sim_time_before, tr)
             record = TelemetryRecord.from_tick(sat_id, sim_time_before, tr)
             self._sink.send(
                 TOPIC_RAW,

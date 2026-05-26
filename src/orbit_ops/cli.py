@@ -73,6 +73,11 @@ def sim_run(
         "--dry-run",
         help="Use the in-memory FakeSink instead of publishing to Kafka.",
     ),
+    faults_path: Path = typer.Option(
+        Path("data/faults.yaml"),
+        "--faults",
+        help="Path to fault config YAML. Missing file means no faults.",
+    ),
 ) -> None:
     """Run the constellation simulator and publish telemetry."""
     setup_logging()
@@ -85,8 +90,13 @@ def sim_run(
     constellation = Constellation.from_tle_file(
         tle_path, clock, name_filter=name_filter, limit=limit
     )
+    from orbit_ops.sim.faults import FaultRegistry
+    faults = FaultRegistry.from_yaml(faults_path)
+    if faults.specs:
+        typer.echo(f"Loaded {len(faults.specs)} fault spec(s) from {faults_path}")
+
     sink = FakeSink() if dry_run else KafkaSink(brokers)
-    producer = ConstellationProducer(constellation, sink)
+    producer = ConstellationProducer(constellation, sink, faults=faults)
     producer.install_signal_handlers()
 
     limit_ticks: int | None = None if max_ticks == 0 else max_ticks

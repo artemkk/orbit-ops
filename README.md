@@ -48,6 +48,28 @@ in eclipse"; that pattern falls out of the physics.
 
 ![Orbit eclipse response](docs/figures/orbit_eclipse.png)
 
+## Fault injection
+
+To validate the anomaly detection layer, the simulator can inject realistic faults
+on configured satellites. Faults are layered on top of nominal physics — the
+underlying model stays correct; the observed telemetry is what diverges, matching
+how real anomalies present (the sensor lies, the cell degrades, the truth state
+is what it is).
+
+Three fault types are currently supported, each chosen to exercise a different
+class of detection method:
+
+| Fault | Symptom | Natural detection method |
+|---|---|---|
+| Battery capacity fade | Reported SoC ceiling drops over many sim-days | Change-point (CUSUM, Page-Hinkley) |
+| Stuck temperature sensor | Temperature reading held while underlying physics moves | Cross-channel residual |
+| Thermal runaway | Monotonic bias growth past operational envelope | Threshold |
+
+Fault configuration is declarative — see `data/faults.example.yaml` for the schema.
+Activate by copying to `data/faults.yaml` and re-running the simulator.
+
+![Fault signatures](docs/figures/fault_signatures.png)
+
 ## Design decisions
 
 To be filled in as decisions are made and defended. Sections planned:
