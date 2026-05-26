@@ -1,4 +1,4 @@
-.PHONY: help install demo sim pipeline stop clean test lint format check tle transform transform-test
+.PHONY: help install demo sim pipeline stop clean test lint format check tle transform transform-test detect
 
 help:
 	@echo "Targets:"
@@ -15,6 +15,7 @@ help:
 	@echo "  tle       - refresh TLE data from Celestrak"
 	@echo "  transform - run dbt models (raw -> staging -> marts)"
 	@echo "  transform-test - run dbt tests"
+	@echo "  detect    - run anomaly detectors against marts + evaluate"
 
 install:
 	uv sync --extra dev --extra dbt
@@ -56,3 +57,10 @@ transform:
 
 transform-test:
 	cd dbt/orbit_ops && uv run dbt test --profiles-dir .
+
+detect:
+	@echo "Detection requires marts built first. Run: make transform"
+	uv run python scripts/evaluate_detectors.py \
+		--marts-glob "$${DETECT_MARTS_GLOB:-/tmp/orbit-ops/marts/sat_minute_rollup.parquet}" \
+		--faults-yaml data/faults.yaml \
+		--out docs/figures/detector_performance.png

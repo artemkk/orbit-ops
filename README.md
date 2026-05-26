@@ -70,6 +70,23 @@ Activate by copying to `data/faults.yaml` and re-running the simulator.
 
 ![Fault signatures](docs/figures/fault_signatures.png)
 
+## Anomaly detection
+
+Each fault class is matched with a detection method appropriate to its
+signal shape. The matrix below summarizes the choice rationale; the
+figure shows current performance against the example fault configuration.
+
+| Detector | Method | Why this method |
+|---|---|---|
+| Capacity fade | CUSUM on rolling max-SoC | Slow drift in a noisy signal; designed for sustained-shift detection |
+| Stuck sensor | Cross-channel residual vs heat-balance model | The value is plausible; the *correlation* is broken |
+| Thermal runaway | Threshold + slope check | Operational limits are known; ML is not the answer to every problem |
+
+![Detector performance](docs/figures/detector_performance.png)
+
+The evaluator joins detector outputs against the fault YAML (ground truth)
+to compute per-detector confusion outcomes and detection latency.
+
 ## Design decisions
 
 To be filled in as decisions are made and defended. Sections planned:
