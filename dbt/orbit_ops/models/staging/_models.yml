@@ -1,0 +1,49 @@
+version: 2
+
+models:
+  - name: stg_geometry
+    description: "Per-tick orbital geometry with computed magnitudes and ground quadrant."
+    columns:
+      - name: sat_id
+        tests: [not_null]
+      - name: sim_time
+        tests: [not_null]
+      - name: position_magnitude_km
+        description: "Distance from Earth's center (km). Should be ~6800-7200 for LEO."
+        tests: [not_null]
+      - name: ground_quadrant
+        description: "NE/NW/SE/SW based on sub-satellite point."
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['NE', 'NW', 'SE', 'SW']
+
+  - name: stg_eps
+    description: "Per-tick electrical power state with charging flag and orbital-time index."
+    columns:
+      - name: sat_id
+        tests: [not_null]
+      - name: sim_time
+        tests: [not_null]
+      - name: battery_soc
+        tests: [not_null]
+      - name: is_charging
+        tests:
+          - not_null
+          - accepted_values:
+              values: [0, 1]
+
+  - name: stg_thermal
+    description: "Per-tick thermal state with heat-balance summary and regime label."
+    columns:
+      - name: sat_id
+        tests: [not_null]
+      - name: sim_time
+        tests: [not_null]
+      - name: bus_temperature_k
+        tests: [not_null]
+      - name: thermal_regime
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['warming', 'cooling', 'steady']

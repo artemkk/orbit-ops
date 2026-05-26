@@ -1,4 +1,4 @@
-.PHONY: help install demo sim pipeline stop clean test lint format check tle
+.PHONY: help install demo sim pipeline stop clean test lint format check tle transform transform-test
 
 help:
 	@echo "Targets:"
@@ -13,6 +13,8 @@ help:
 	@echo "  format    - ruff format"
 	@echo "  check     - lint + test"
 	@echo "  tle       - refresh TLE data from Celestrak"
+	@echo "  transform - run dbt models (raw -> staging -> marts)"
+	@echo "  transform-test - run dbt tests"
 
 install:
 	uv sync --extra dev --extra dbt
@@ -48,3 +50,9 @@ check: lint test
 
 tle:
 	uv run python scripts/fetch_tles.py
+
+transform:
+	cd dbt/orbit_ops && uv run dbt run --profiles-dir .
+
+transform-test:
+	cd dbt/orbit_ops && uv run dbt test --profiles-dir .

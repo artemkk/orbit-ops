@@ -1,0 +1,21 @@
+version: 2
+
+models:
+  - name: raw_telemetry
+    description: "Typed 1:1 view of the raw telemetry Parquet files."
+    columns:
+      - name: sat_id
+        description: "Satellite identifier."
+        tests: [not_null]
+      - name: sim_time
+        description: "Parsed timestamp."
+        tests: [not_null]
+      - name: battery_soc
+        description: "Battery state of charge, 0-1."
+        tests: [not_null]
+      - name: bus_temperature_k
+        description: "Bus temperature in Kelvin."
+        tests: [not_null]
+      - name: eclipsed
+        description: "Eclipse flag."
+        tests: [not_null]

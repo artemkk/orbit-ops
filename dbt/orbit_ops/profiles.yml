@@ -1,0 +1,25 @@
+# Project-local profile. Override DBT_PROFILES_DIR to point dbt here, or
+# invoke via `dbt --profiles-dir ./dbt/orbit_ops <command>`.
+orbit_ops:
+  target: dev
+  outputs:
+    dev:
+      type: duckdb
+      # In-memory by default; switch to a file path for persistent dev work.
+      path: "{{ env_var('DBT_DUCKDB_PATH', ':memory:') }}"
+      extensions:
+        - httpfs
+        - parquet
+      settings:
+        s3_url_style: 'path'
+        s3_endpoint: "{{ env_var('DBT_S3_ENDPOINT', 'localhost:9000') }}"
+        s3_access_key_id: "{{ env_var('DBT_S3_ACCESS_KEY', 'minioadmin') }}"
+        s3_secret_access_key: "{{ env_var('DBT_S3_SECRET_KEY', 'minioadmin') }}"
+        s3_use_ssl: false
+    test:
+      # Used by the pytest wrapper. File-based (so state persists across
+      # dbt run + dbt test invocations), no S3.
+      type: duckdb
+      path: "{{ env_var('DBT_DUCKDB_PATH', 'test.duckdb') }}"
+      extensions:
+        - parquet

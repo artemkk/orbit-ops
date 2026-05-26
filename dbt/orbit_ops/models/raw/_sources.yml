@@ -1,0 +1,23 @@
+version: 2
+
+sources:
+  - name: telemetry_files
+    description: "Raw telemetry Parquet files produced by the consumer."
+    meta:
+      external_location: "{{ var('telemetry_parquet_glob') }}"
+    tables:
+      - name: telemetry
+        description: "One row per satellite per tick. Hive-partitioned by sat_id, date, hour."
+        meta:
+          external_location: "{{ var('telemetry_parquet_glob') }}"
+        columns:
+          - name: sat_id
+            description: "Satellite identifier (e.g., SKYSAT-1)."
+          - name: sim_time_iso
+            description: "ISO 8601 UTC simulation timestamp."
+          - name: battery_soc
+            description: "Battery state of charge, 0-1."
+          - name: bus_temperature_k
+            description: "Bus temperature in Kelvin."
+          - name: eclipsed
+            description: "True if the satellite is in Earth's umbra at this tick."

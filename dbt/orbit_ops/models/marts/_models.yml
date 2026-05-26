@@ -1,0 +1,35 @@
+version: 2
+
+models:
+  - name: sat_minute_rollup
+    description: "Per-satellite, per-minute aggregates. The primary grain for time-series dashboards."
+    columns:
+      - name: sat_id
+        tests: [not_null]
+      - name: minute_bucket
+        tests: [not_null]
+      - name: battery_soc_mean
+        tests: [not_null]
+      - name: eclipse_fraction
+        tests:
+          - not_null
+
+  - name: fleet_health_snapshot
+    description: "Latest state per satellite, with health bands. Drives the fleet heat-map."
+    columns:
+      - name: sat_id
+        tests:
+          - not_null
+          - unique
+      - name: latest_sim_time
+        tests: [not_null]
+      - name: battery_health_band
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['critical', 'degraded', 'nominal']
+      - name: thermal_health_band
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['critical', 'degraded', 'nominal']

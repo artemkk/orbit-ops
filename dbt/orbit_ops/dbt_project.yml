@@ -1,0 +1,36 @@
+name: 'orbit_ops'
+version: '0.1.0'
+config-version: 2
+
+profile: 'orbit_ops'
+
+model-paths: ['models']
+analysis-paths: ['analyses']
+test-paths: ['tests']
+seed-paths: ['seeds']
+macro-paths: ['macros']
+snapshot-paths: ['snapshots']
+
+target-path: 'target'
+clean-targets:
+  - 'target'
+  - 'dbt_packages'
+
+# Layered configuration: each subdir under models/ gets its own materialization
+# strategy. Raw uses views (simple); staging uses views; marts are materialized
+# as external Parquet files on object storage.
+models:
+  orbit_ops:
+    raw:
+      +materialized: view
+    staging:
+      +materialized: view
+    marts:
+      +materialized: external
+
+vars:
+  # Glob pattern for the raw Parquet files produced by the consumer.
+  # In local dev this is a filesystem path; against MinIO/R2 this is an
+  # s3:// URL and DuckDB's httpfs extension handles it.
+  telemetry_parquet_glob: "{{ env_var('DBT_TELEMETRY_GLOB', '/tmp/orbit-ops/telemetry/sat_id=*/date=*/hour=*/*.parquet') }}"
+  external_root: "{{ env_var('DBT_EXTERNAL_ROOT', '/tmp/orbit-ops/marts') }}"
