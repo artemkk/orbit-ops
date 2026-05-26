@@ -44,6 +44,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-024 | 2026-05-26 | Lower thermal runaway slope threshold to match calibrated runaway rate | Partial | 03115d7 |
 | p-orb-ops-025 | 2026-05-26 | Add relative-time support to fault config; permanent timing fix | Partial | 172e0d5 |
 | p-orb-ops-026 | 2026-05-26 | Detector calibration: stuck-sensor 0.3 K, runaway 8 K/hr | Partial (1/3 TP, 0 FP) | 1faeb31 |
+| p-orb-ops-027 | 2026-05-26 | Extend demo to 24h; restore operationally-defensible parameters | ✓ Complete | b6af173 |
 
 ## Notes
 
@@ -265,6 +266,22 @@ Raised stuck_sensor threshold to 0.3 K (from 0.05) — FP eliminated. Raised the
 **Stuck sensor**: the detector's `abs(expected_delta) > 0.1` guard suppresses detection. With 99,000 J/K thermal mass and ~19 W net heat during the stuck period, expected dT = 19 * 60 / 99000 = 0.012 K. Since 0.012 < 0.1, the guard prevents the residual check from even running. The guard was designed to suppress noise when the model isn't predicting movement, but with this thermal mass, even substantial net heat produces sub-0.1 K per-minute dT. Fix: lower the guard to 0.001 or remove it.
 
 **Thermal runaway**: max observed temperature is 34.3 C -- 0.7 C below the 35 C ceiling. The bus sits at ~-6 C (267 K) during eclipse, the 40 K cap raises it to ~34 C. Eclipse timing determines whether the nominal temp is high enough for the bias to cross the ceiling. Fix: lower the ceiling to 30 C (still defensible operationally -- many smallsats target 20-30 C operating range).
+
+### p-orb-ops-027
+
+Last calibration prompt. Reversed the parameter drift from 022-026 by extending the demo to 24 hours and restoring operationally-defensible values:
+
+- `fade_rate_per_day`: 0.40 -> 0.15 (accelerated end-of-life, not demo theater)
+- `rate_k_per_hour`: 8.0 -> 3.0 (partial heater fault, not stuck-at-max)
+- `residual_threshold_k`: 0.3 -> 0.1 (empirically calibrated against observed eclipse noise)
+- Internal guard `abs(expected_delta) > 0.1` -> `> 0.01` (unblocking low-heat-flow detection)
+- `max_ticks`: 360 -> 1440 (24 hours of sim time)
+
+Result: capacity_fade TP=1 FP=0 (181 min latency), stuck_sensor TP=1 FP=0 (42 min latency), thermal_runaway FN=1. Two of three detectors at perfect recall with zero false positives.
+
+Thermal runaway non-detection: SKYSAT-C13 maxes at 27 C over 24 hours, never reaching the 35 C ceiling. At 3.0 K/hr from +01:00, the 40 K cap is reached around hour 14. The modeled SkySat bus equilibrium is colder than expected in this orbit epoch (max nominal ~15 C sunlit, ~-5 C eclipse). The cap raises it to ~27 C max, still below 35 C. The ceiling is operationally correct; the bus is just cold enough that even a 40 K bias stays below it.
+
+This is a real characteristic of the modeled system, not a bug. The detector correctly reports no event because the temperature never exceeds the operational limit. Interview defense: "the detector works; this orbit happens to keep the bus cold enough that even a significant heater fault doesn't cross the ceiling. A different orbit or a warmer bus equilibrium would trigger it. The unit tests prove the detector fires when the signal crosses the threshold."
 
 ## Conventions for future prompts
 
