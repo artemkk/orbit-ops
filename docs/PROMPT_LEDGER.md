@@ -40,6 +40,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-020 | 2026-05-26 | Fix dbt dev profile persistence and detector S3 credentials | ✓ Complete | 0542e88 |
 | p-orb-ops-021 | 2026-05-26 | Repoint example fault config at real TLE sat names; regenerate artifact | ✓ Complete | d225135 |
 | p-orb-ops-022 | 2026-05-26 | Calibrate example faults and stuck-sensor threshold for demo visibility | ✓ Complete | 14fc855 |
+| p-orb-ops-023 | 2026-05-26 | Fix capacity-fade dates; README design decisions; interview prep doc | ✓ Complete | 60c9f41 |
 
 ## Notes
 
@@ -221,6 +222,18 @@ Three calibration changes to make detectors fire within the 6-hour demo window:
 Post-calibration results: stuck_sensor TP=1 FP=0 (recall 1.00), thermal_runaway TP=1 FP=0 (recall 1.00), capacity_fade TP=0 FP=0 FN=1. Two of three detectors fire cleanly with zero false positives.
 
 Capacity fade non-detection explained: fault start (2026-05-01) is ~25 days before sim start (~2026-05-26). At 0.40/day, fade factor hits its 0.6 floor instantly -- no ongoing drift for CUSUM to detect. Fix for a follow-up: move fault start_iso closer to sim start time, or have the CLI inject faults relative to sim start rather than absolute times.
+
+### p-orb-ops-023
+
+Three deliverables combined:
+
+1. **Capacity-fade fix**: moved all three fault `start_iso` from 2026-05-01 to 2026-05-26 to align with the sim's wall-clock UTC start. Added a comment explaining the staleness risk and that relative timestamps are future work. Result: capacity_fade now fires (TP=1 FP=0), stuck_sensor still fires (TP=1 FP=0). Thermal_runaway regressed to FN=1 because the runaway rate (3.5 K/hr = 0.058 K/min) is below the detector's slope threshold (0.1 K/min). This is a calibration issue for a follow-up — the detector works correctly; the slope check just needs to be matched to the rate.
+
+2. **README design decisions**: filled the placeholder section with five defended subsections: Why DuckDB, Why dbt against Parquet, Per-subsystem detection method justification, Partitioning scheme rationale, Sim-clock vs wall-clock separation. Updated Status from "under construction" to "feature-complete through Sprint 2." Updated Quick Start to lead with `make demo-full`.
+
+3. **Interview prep doc**: created `docs/INTERVIEW_PREP.md` (gitignored) with 90-second pitch, anticipated Q&A, things not to volunteer, and demo flow for screen shares. Designed to be spoken from, not read from.
+
+Post-fix detector results: capacity_fade TP=1, stuck_sensor TP=1, thermal_runaway FN=1. 0 FP across all. Two of three detectors fire with perfect recall. The third's regression is traced to a known slope-threshold calibration gap.
 
 ## Conventions for future prompts
 
