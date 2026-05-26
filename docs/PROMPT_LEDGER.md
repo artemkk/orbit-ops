@@ -35,6 +35,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-015 | 2026-05-25 | dbt-duckdb transformations: raw / staging / marts with tests | ✓ Complete | 0f2f9ea |
 | p-orb-ops-016 | 2026-05-25 | Fault injection layer: capacity fade, stuck sensor, thermal runaway | ✓ Complete | ee3b5d2 |
 | p-orb-ops-017 | 2026-05-25 | Anomaly detection: three detectors, runner, evaluator, confusion matrix | ✓ Complete | da2b738 |
+| p-orb-ops-018 | 2026-05-26 | Grafana dashboards: fleet view, satellite drilldown, anomaly feed | ✓ Complete | 2a74aef |
 
 ## Notes
 
@@ -156,6 +157,20 @@ The runner reads `sat_minute_rollup` marts, iterates sat-by-sat in time order, f
 The evaluator joins detected events against the fault YAML (ground truth) to compute per-detector confusion outcomes (TP/FP/FN), recall, precision, and detection latency. `scripts/evaluate_detectors.py` renders the confusion matrix + latency figure.
 
 Artifact `docs/figures/detector_performance.png` deferred to follow-up -- requires full-stack run (sim with faults -> consume -> dbt marts -> detect) to produce meaningful data. Code and tests are complete and green.
+
+### p-orb-ops-018
+
+The visualization layer. Three Grafana dashboards JSON-provisioned and mounted into the container at startup:
+
+- **Fleet view**: table of all satellites with health-band coloring on battery and thermal columns. Reads `fleet_health_snapshot` mart.
+- **Satellite drilldown**: time series of SoC, temperature, net power, eclipse fraction per selected satellite; recent anomaly events panel. Reads `sat_minute_rollup` + `anomaly_events`. Templating variable populated from a query against `fleet_health_snapshot`.
+- **Anomaly feed**: fleet-wide chronological table of detector firings, severity-colored. Reads `anomaly_events`.
+
+Grafana queries the marts directly via the motherduck-duckdb-datasource plugin (v0.4.1) running DuckDB embedded inside Grafana. The plugin is unsigned; installed via `GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS` plus a pinned GitHub release URL in `GF_INSTALL_PLUGINS`. The "we removed this in p-orb-ops-004 because it was broken" story closes here: the registry-based install was broken; the GitHub-release install with allowlist works.
+
+Provisioning lives in three subdirs under `dashboards/grafana/`: `dashboards/` (provider config), `datasources/` (DuckDB config), and `dashboard-defs/` (the JSON files themselves). Docker-compose mounts each at Grafana's expected path.
+
+New `make demo-full` target produces a complete end-to-end demo: stack up, 6-hour sim with faults, consume, transform, detect. After it completes, all dashboards have populated panels.
 
 ## Conventions for future prompts
 
