@@ -78,12 +78,15 @@ services:
     environment:
       GF_AUTH_ANONYMOUS_ENABLED: "true"
       GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
-      # DuckDB datasource plugin added in Sprint 3 (requires unsigned-plugin setup)
+      GF_PLUGINS_ALLOW_LOADING_UNSIGNED_PLUGINS: motherduck-duckdb-datasource
+      GF_INSTALL_PLUGINS: "https://github.com/motherduckdb/grafana-duckdb-datasource/releases/download/v0.4.1/motherduck-duckdb-datasource-0.4.1.zip;motherduck-duckdb-datasource"
     ports:
       - "3000:3000"
     volumes:
       - grafana-data:/var/lib/grafana
-      - ../../dashboards/grafana:/etc/grafana/provisioning/dashboards:ro
+      - ../../dashboards/grafana/dashboards:/etc/grafana/provisioning/dashboards:ro
+      - ../../dashboards/grafana/datasources:/etc/grafana/provisioning/datasources:ro
+      - ../../dashboards/grafana/dashboard-defs:/var/lib/grafana/dashboards:ro
 
 volumes:
   minio-data:

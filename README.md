@@ -87,6 +87,32 @@ figure shows current performance against the example fault configuration.
 The evaluator joins detector outputs against the fault YAML (ground truth)
 to compute per-detector confusion outcomes and detection latency.
 
+## Dashboards
+
+Three Grafana dashboards, JSON-provisioned and version-controlled in
+`dashboards/grafana/`. Auto-loaded on container start.
+
+| Dashboard | Purpose |
+|---|---|
+| Fleet view | "Is anything wrong right now" -- table of all sats with health-band coloring |
+| Satellite drilldown | Pick one sat, see all its telemetry + recent events |
+| Anomaly feed | Chronological log of detector firings across the fleet |
+
+Grafana queries the marts Parquet files directly via the DuckDB datasource
+plugin -- no separate query service. Honors the project's "everything
+queryable from object storage" architectural constraint.
+
+To see the dashboards with real data:
+
+```bash
+make demo-full
+open http://localhost:3000
+```
+
+`make demo-full` brings up the stack, runs a 6-hour sim with the example
+faults active, consumes, transforms, and runs detection. After it completes,
+all three dashboards have populated panels.
+
 ## Design decisions
 
 To be filled in as decisions are made and defended. Sections planned:

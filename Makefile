@@ -1,4 +1,4 @@
-.PHONY: help install demo sim pipeline stop clean test lint format check tle transform transform-test detect
+.PHONY: help install demo demo-full sim pipeline stop clean test lint format check tle transform transform-test detect
 
 help:
 	@echo "Targets:"
@@ -16,6 +16,7 @@ help:
 	@echo "  transform - run dbt models (raw -> staging -> marts)"
 	@echo "  transform-test - run dbt tests"
 	@echo "  detect    - run anomaly detectors against marts + evaluate"
+	@echo "  demo-full - full demo: stack + sim + consume + transform + detect"
 
 install:
 	uv sync --extra dev --extra dbt
@@ -64,3 +65,20 @@ detect:
 		--marts-glob "$${DETECT_MARTS_GLOB:-/tmp/orbit-ops/marts/sat_minute_rollup.parquet}" \
 		--faults-yaml data/faults.yaml \
 		--out docs/figures/detector_performance.png
+
+demo-full: demo
+	@echo "Waiting for stack to be healthy..."
+	@sleep 20
+	@if [ ! -f data/faults.yaml ]; then cp data/faults.example.yaml data/faults.yaml; fi
+	uv run orbit-ops sim run --limit 5 --max-ticks 360 --tick-seconds 60
+	uv run orbit-ops pipeline consume --idle-polls-before-exit 5
+	DBT_TELEMETRY_GLOB='s3://telemetry/sat_id=*/date=*/hour=*/*.parquet' \
+	DBT_EXTERNAL_ROOT='s3://telemetry/marts' \
+	$(MAKE) transform
+	uv run python scripts/evaluate_detectors.py \
+		--marts-glob 's3://telemetry/marts/sat_minute_rollup.parquet' \
+		--faults-yaml data/faults.yaml \
+		--out docs/figures/detector_performance.png
+	@echo ""
+	@echo "Stack populated. Open Grafana at http://localhost:3000"
+	@echo "Dashboards: Fleet View | Satellite Drilldown | Anomaly Feed"

@@ -1,0 +1,68 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Fleet Health — Latest State",
+      "type": "table",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 18, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT sat_id, latest_sim_time, battery_soc, bus_temperature_c, battery_health_band, thermal_health_band, eclipsed, latitude_deg, longitude_deg, altitude_km FROM read_parquet('s3://telemetry/marts/fleet_health_snapshot.parquet') ORDER BY sat_id",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"align": "auto", "displayMode": "auto"}
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "battery_health_band"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "mappings", "value": [
+                {"type": "value", "options": {"nominal": {"color": "green"}, "degraded": {"color": "orange"}, "critical": {"color": "red"}}}
+              ]}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "thermal_health_band"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "mappings", "value": [
+                {"type": "value", "options": {"nominal": {"color": "green"}, "degraded": {"color": "orange"}, "critical": {"color": "red"}}}
+              ]}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "battery_soc"},
+            "properties": [
+              {"id": "unit", "value": "percentunit"},
+              {"id": "decimals", "value": 2}
+            ]
+          },
+          {
+            "matcher": {"id": "byName", "options": "bus_temperature_c"},
+            "properties": [
+              {"id": "unit", "value": "celsius"},
+              {"id": "decimals", "value": 1}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["orbit-ops", "fleet"],
+  "templating": {"list": []},
+  "time": {"from": "now-24h", "to": "now"},
+  "timezone": "utc",
+  "title": "Orbit Ops — Fleet View",
+  "uid": "orbit-ops-fleet",
+  "version": 1,
+  "refresh": "30s"
+}

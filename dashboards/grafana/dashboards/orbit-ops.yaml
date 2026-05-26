@@ -1,0 +1,14 @@
+# Tells Grafana where to find dashboard JSON files.
+apiVersion: 1
+
+providers:
+  - name: 'orbit-ops'
+    orgId: 1
+    folder: 'Orbit Ops'
+    type: file
+    disableDeletion: true
+    updateIntervalSeconds: 30
+    allowUiUpdates: false
+    options:
+      path: /var/lib/grafana/dashboards
+      foldersFromFilesStructure: false

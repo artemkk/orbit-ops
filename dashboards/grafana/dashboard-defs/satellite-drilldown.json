@@ -1,0 +1,106 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Battery SoC",
+      "type": "timeseries",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT minute_bucket AS time, battery_soc_mean FROM read_parquet('s3://telemetry/marts/sat_minute_rollup.parquet') WHERE sat_id = '$sat_id' ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "percentunit", "min": 0, "max": 1}
+      }
+    },
+    {
+      "id": 2,
+      "title": "Bus Temperature",
+      "type": "timeseries",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT minute_bucket AS time, bus_temperature_k_mean - 273.15 AS temp_c FROM read_parquet('s3://telemetry/marts/sat_minute_rollup.parquet') WHERE sat_id = '$sat_id' ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {"unit": "celsius"}
+      }
+    },
+    {
+      "id": 3,
+      "title": "Net Power",
+      "type": "timeseries",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT minute_bucket AS time, net_power_w_mean FROM read_parquet('s3://telemetry/marts/sat_minute_rollup.parquet') WHERE sat_id = '$sat_id' ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "watt"}}
+    },
+    {
+      "id": 4,
+      "title": "Eclipse Fraction (per minute)",
+      "type": "timeseries",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT minute_bucket AS time, eclipse_fraction FROM read_parquet('s3://telemetry/marts/sat_minute_rollup.parquet') WHERE sat_id = '$sat_id' ORDER BY time",
+          "format": "time_series"
+        }
+      ],
+      "fieldConfig": {"defaults": {"unit": "percentunit", "min": 0, "max": 1}}
+    },
+    {
+      "id": 5,
+      "title": "Recent Anomaly Events for this Satellite",
+      "type": "table",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 8, "w": 24, "x": 0, "y": 16},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT sim_time_iso, detector_name, severity, score, description FROM read_parquet('s3://telemetry/anomaly_events/events.parquet') WHERE sat_id = '$sat_id' ORDER BY sim_time_iso DESC LIMIT 20",
+          "format": "table"
+        }
+      ]
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["orbit-ops", "satellite"],
+  "templating": {
+    "list": [
+      {
+        "name": "sat_id",
+        "type": "query",
+        "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+        "query": "SELECT DISTINCT sat_id FROM read_parquet('s3://telemetry/marts/fleet_health_snapshot.parquet') ORDER BY sat_id",
+        "refresh": 1,
+        "label": "Satellite",
+        "multi": false,
+        "includeAll": false
+      }
+    ]
+  },
+  "time": {"from": "now-24h", "to": "now"},
+  "timezone": "utc",
+  "title": "Orbit Ops — Satellite Drilldown",
+  "uid": "orbit-ops-sat",
+  "version": 1,
+  "refresh": "30s"
+}

@@ -1,0 +1,45 @@
+{
+  "annotations": {"list": []},
+  "editable": false,
+  "panels": [
+    {
+      "id": 1,
+      "title": "Anomaly Events — All Fleet, Most Recent First",
+      "type": "table",
+      "datasource": {"type": "motherduck-duckdb-datasource", "uid": "orbit-ops-duckdb"},
+      "gridPos": {"h": 18, "w": 24, "x": 0, "y": 0},
+      "targets": [
+        {
+          "refId": "A",
+          "rawSql": "SELECT sim_time_iso, sat_id, detector_name, severity, score, description FROM read_parquet('s3://telemetry/anomaly_events/events.parquet') ORDER BY sim_time_iso DESC LIMIT 100",
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {"align": "auto", "displayMode": "auto"}
+        },
+        "overrides": [
+          {
+            "matcher": {"id": "byName", "options": "severity"},
+            "properties": [
+              {"id": "custom.displayMode", "value": "color-background"},
+              {"id": "mappings", "value": [
+                {"type": "value", "options": {"info": {"color": "blue"}, "warning": {"color": "orange"}, "critical": {"color": "red"}}}
+              ]}
+            ]
+          }
+        ]
+      }
+    }
+  ],
+  "schemaVersion": 39,
+  "tags": ["orbit-ops", "anomalies"],
+  "templating": {"list": []},
+  "time": {"from": "now-7d", "to": "now"},
+  "timezone": "utc",
+  "title": "Orbit Ops — Anomaly Feed",
+  "uid": "orbit-ops-anomalies",
+  "version": 1,
+  "refresh": "30s"
+}

@@ -1,0 +1,12 @@
+# DuckDB datasource pointed at MinIO. Reads the marts Parquet files
+# directly; no separate query service needed.
+apiVersion: 1
+
+datasources:
+  - name: orbit-ops-duckdb
+    type: motherduck-duckdb-datasource
+    access: proxy
+    isDefault: true
+    jsonData:
+      path: ":memory:"
+    editable: false

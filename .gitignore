@@ -58,3 +58,6 @@ logs/
 
 # Skyfield ephemeris (auto-downloaded on first run, ~17 MB)
 *.bsp
+
+# User-local fault config (created from .example.yaml on demand)
+data/faults.yaml
