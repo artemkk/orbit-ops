@@ -23,19 +23,21 @@
 # Absolute start_iso is also supported if you need a specific UTC time.
 # Exactly one of start_iso or start_offset must be set per fault.
 #
-# Note: parameter scales below are calibrated for demo visibility (6-hour
-# window). Real operational fault injection would use smaller rates that
-# exercise the detectors over days. The detection method choice is
-# independent of these scales; the detectors fire on the *shape* of the
-# signal regardless of magnitude.
+# Parameter scales below reflect realistic accelerated-failure scenarios:
+# - capacity_fade: 0.15/day is end-of-life-aggressive but operationally
+#   plausible (real degradation is slower; this models a stressed cell).
+# - thermal_runaway: 3.0 K/hr models a partial heater fault or degraded
+#   radiator coupling.
+# The 24-hour demo window is sized to exercise these detection methods
+# at their operationally-tuned settings.
 
 faults:
-  # SKYSAT-A: battery cells degrading at 40% per sim-day from sim start
+  # SKYSAT-A: battery cells degrading at 15% per sim-day from sim start
   - sat_id: "SKYSAT-A"
     fault_type: "battery_capacity_fade"
     start_offset: "+00:00:00"
     params:
-      fade_rate_per_day: 0.40
+      fade_rate_per_day: 0.15
       floor: 0.6
 
   # SKYSAT-C9: temperature sensor freezes 30 minutes in
@@ -44,14 +46,10 @@ faults:
     start_offset: "+00:30:00"
     params: {}
 
-  # SKYSAT-C13: heater stuck on, 8 K/hr bias from 1 hour in
-  # 8 K/hr is consistent with a fully-stuck high-power heater (~150 W
-  # additional heat into the bus). Lower rates model partial heater
-  # malfunctions; we use the strong case here for clean demo crossing
-  # of the 35 C operational ceiling.
+  # SKYSAT-C13: partial heater fault, 3 K/hr bias from 1 hour in
   - sat_id: "SKYSAT-C13"
     fault_type: "thermal_runaway"
     start_offset: "+01:00:00"
     params:
-      rate_k_per_hour: 8.0
+      rate_k_per_hour: 3.0
       cap_k: 40.0

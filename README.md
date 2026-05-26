@@ -119,7 +119,7 @@ make demo-full
 open http://localhost:3000
 ```
 
-`make demo-full` brings up the stack, runs a 6-hour sim with the example
+`make demo-full` brings up the stack, runs a 24-hour sim with the example
 faults active, consumes, transforms, and runs detection. After it completes,
 all three dashboards have populated panels.
 
@@ -246,6 +246,19 @@ scheduled detector runs, alert routing, lineage tracking. The
 architecture supports this trivially (every step is a CLI command);
 adding Airflow would be scope creep that doesn't sharpen the signal of
 the data engineering work.
+
+### Why a 24-hour demo window
+
+The example fault scenarios use realistic accelerated-failure parameter
+scales (e.g., 0.15/day battery capacity fade -- aggressive but not
+cartoonish). At those scales, the detection methods require at least
+12-24 hours of observation to fire confidently. The demo runs 24 hours
+of sim time in roughly 60 seconds of wall time (FAST mode), exercising
+the detectors at their operationally-tuned thresholds rather than at
+artificially weakened ones. This is the same trade-off real ops teams
+face: detection latency is bounded by signal-to-noise in the data, and
+you can't make a slow-drift detector fast by lowering its threshold
+without taking the false-positive rate with you.
 
 ## Project context
 

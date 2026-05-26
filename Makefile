@@ -70,7 +70,7 @@ demo-full: demo
 	@echo "Waiting for stack to be healthy..."
 	@sleep 20
 	@if [ ! -f data/faults.yaml ]; then cp data/faults.example.yaml data/faults.yaml; fi
-	uv run orbit-ops sim run --limit 5 --max-ticks 360 --tick-seconds 60
+	uv run orbit-ops sim run --limit 15 --max-ticks 1440 --tick-seconds 60
 	uv run orbit-ops pipeline consume --idle-polls-before-exit 5
 	DBT_TELEMETRY_GLOB='s3://telemetry/sat_id=*/date=*/hour=*/*.parquet' \
 	DBT_EXTERNAL_ROOT='s3://telemetry/marts' \

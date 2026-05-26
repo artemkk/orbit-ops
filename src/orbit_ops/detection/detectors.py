@@ -119,16 +119,11 @@ class StuckSensorDetector:
     sat_id: str
     thermal_mass_j_per_k: float = 110.0 * 900.0
     """m * c for the bus. Defaults to SkySat-class values from subsystem_params."""
-    residual_threshold_k: float = 0.3
-    """Per-minute residual threshold (K). Calibrated to be larger than the
-    residuals produced by eclipse transitions on nominal sats (where rapid
-    heat-balance swings make the predicted dT large and small prediction
-    errors read as larger residuals), while remaining well below the
-    sustained residual produced by an actually stuck sensor (which holds
-    the value while heat balance keeps swinging, producing residuals on
-    the order of the full predicted dT swing -- often several K). The
-    earlier value of 0.05 was calibrated against typical mid-orbit net
-    heat flows but produced false positives on eclipse transitions."""
+    residual_threshold_k: float = 0.1
+    """Per-minute residual threshold (K). Calibrated above eclipse-transition
+    residual noise (observed up to ~0.15 K on nominal sats) and below
+    sustained stuck-sensor signal (multi-K during heat swings). The
+    threshold is empirical against the modeled SkySat bus."""
     consecutive_minutes_required: int = 5
     """Number of consecutive minutes above threshold before firing.
     Suppresses false positives from numerical noise."""
@@ -151,7 +146,7 @@ class StuckSensorDetector:
         actual_delta = temp_k - self._last_temp_k
         residual_k = abs(expected_delta - actual_delta)
 
-        if residual_k > self.residual_threshold_k and abs(expected_delta) > 0.1:
+        if residual_k > self.residual_threshold_k and abs(expected_delta) > 0.01:
             self._consecutive_count += 1
         else:
             self._consecutive_count = 0
