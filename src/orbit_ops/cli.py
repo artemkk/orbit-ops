@@ -98,10 +98,76 @@ def sim_run(
 
 
 @pipeline_app.command("consume")
-def pipeline_consume() -> None:
-    """Consume from Redpanda and write Parquet. Stub -- next milestone."""
-    typer.echo("pipeline consume: not implemented yet")
-    raise typer.Exit(code=1)
+def pipeline_consume(
+    brokers: str = typer.Option(
+        os.environ.get("REDPANDA_BROKERS", "localhost:19092"),
+        "--brokers",
+        help="Kafka brokers.",
+    ),
+    minio_endpoint: str = typer.Option(
+        os.environ.get("MINIO_ENDPOINT", "http://localhost:9000"),
+        "--endpoint",
+        help="S3-compatible endpoint URL.",
+    ),
+    bucket: str = typer.Option(
+        os.environ.get("MINIO_BUCKET", "telemetry"),
+        "--bucket",
+        help="S3 bucket to write Parquet files into.",
+    ),
+    group_id: str = typer.Option(
+        "orbit-ops-consumer",
+        "--group",
+        help="Kafka consumer group ID.",
+    ),
+    from_beginning: bool = typer.Option(
+        True,
+        "--from-beginning/--from-latest",
+        help="Read from the start of the topic (default) or only new messages.",
+    ),
+    max_rows_per_batch: int = typer.Option(
+        50_000,
+        "--max-rows-per-batch",
+        help="Flush a partition buffer when it reaches this row count.",
+    ),
+    idle_polls_before_exit: int = typer.Option(
+        0,
+        "--idle-polls-before-exit",
+        help="Exit after this many empty polls in a row. 0 = run forever.",
+    ),
+) -> None:
+    """Consume telemetry.raw and write Parquet to S3-compatible storage."""
+    from orbit_ops.pipeline.batcher import ParquetBatcher
+    from orbit_ops.pipeline.consumer import (
+        KafkaSource,
+        TelemetryConsumer,
+        setup_logging,
+    )
+    from orbit_ops.pipeline.storage import S3Config, S3ParquetWriter
+
+    setup_logging()
+    config = S3Config(
+        endpoint_url=minio_endpoint,
+        access_key=os.environ.get("MINIO_ACCESS_KEY", "minioadmin"),
+        secret_key=os.environ.get("MINIO_SECRET_KEY", "minioadmin"),
+        bucket=bucket,
+    )
+    writer = S3ParquetWriter(config)
+    batcher = ParquetBatcher(writer, max_rows_per_batch=max_rows_per_batch)
+    source = KafkaSource(brokers, group_id=group_id, from_beginning=from_beginning)
+    consumer = TelemetryConsumer(
+        source,
+        batcher,
+        idle_polls_before_exit=idle_polls_before_exit or None,
+    )
+    consumer.install_signal_handlers()
+
+    stats = consumer.run()
+    typer.echo(
+        f"Done. polls={stats.polls} messages={stats.messages_received} "
+        f"decode_errors={stats.decode_errors} "
+        f"files_written={batcher.stats.files_written} "
+        f"bytes_written={batcher.stats.bytes_written}"
+    )
 
 
 if __name__ == "__main__":
