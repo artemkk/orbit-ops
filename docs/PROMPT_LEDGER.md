@@ -34,6 +34,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-014 | 2026-05-25 | Consumer + Parquet writer to MinIO; full pipeline round trip | ✓ Complete | 21345fc |
 | p-orb-ops-015 | 2026-05-25 | dbt-duckdb transformations: raw / staging / marts with tests | ✓ Complete | 0f2f9ea |
 | p-orb-ops-016 | 2026-05-25 | Fault injection layer: capacity fade, stuck sensor, thermal runaway | ✓ Complete | ee3b5d2 |
+| p-orb-ops-017 | 2026-05-25 | Anomaly detection: three detectors, runner, evaluator, confusion matrix | ✓ Complete | da2b738 |
 
 ## Notes
 
@@ -141,6 +142,20 @@ Architectural choice: faults are a *layer* applied to nominal `TickResult` outpu
 Configuration is declarative YAML (`data/faults.yaml`, not committed; example at `data/faults.example.yaml`). Loaded once at producer startup; applied per-tick. `FaultRegistry.from_yaml` returns an empty registry on missing file, so the default behavior with no config is fully nominal.
 
 Ground-truth fault timing is preserved by the YAML; the next prompt will use this as labels for backtesting detectors and producing a confusion matrix for the README.
+
+### p-orb-ops-017
+
+The anomaly detection layer. Three detector classes, each chosen as the right method for its fault class -- the deliberate variety is the project's "pragmatic methods, not ML reflexes" signal.
+
+- **CapacityFadeDetector** (CUSUM on rolling max-SoC). Capacity fade is slow drift in a noisy signal; CUSUM was designed exactly for this problem class. Cheap, no training, defensible mathematically.
+- **StuckSensorDetector** (cross-channel residual vs heat-balance prediction). The stuck value is plausible in isolation; what breaks is its correlation with the other thermal channels. Computing the predicted dT from the heat-balance equation and watching the residual catches it cleanly while a naive z-score would miss it.
+- **ThermalRunawayDetector** (threshold + positive-slope check). The operational limit is known; ML is not the answer. The slope check suppresses false positives from normal sunlit warming briefly grazing the ceiling.
+
+The runner reads `sat_minute_rollup` marts, iterates sat-by-sat in time order, feeds each row to all three detector instances. Events accumulate in memory, then flush to Parquet.
+
+The evaluator joins detected events against the fault YAML (ground truth) to compute per-detector confusion outcomes (TP/FP/FN), recall, precision, and detection latency. `scripts/evaluate_detectors.py` renders the confusion matrix + latency figure.
+
+Artifact `docs/figures/detector_performance.png` deferred to follow-up -- requires full-stack run (sim with faults -> consume -> dbt marts -> detect) to produce meaningful data. Code and tests are complete and green.
 
 ## Conventions for future prompts
 
