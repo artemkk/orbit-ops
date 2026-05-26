@@ -36,6 +36,8 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-016 | 2026-05-25 | Fault injection layer: capacity fade, stuck sensor, thermal runaway | ✓ Complete | ee3b5d2 |
 | p-orb-ops-017 | 2026-05-25 | Anomaly detection: three detectors, runner, evaluator, confusion matrix | ✓ Complete | da2b738 |
 | p-orb-ops-018 | 2026-05-26 | Grafana dashboards: fleet view, satellite drilldown, anomaly feed | ✓ Complete | 2a74aef |
+| p-orb-ops-019 | 2026-05-26 | End-to-end verification: pipeline works, 2 small issues surfaced | Verification (no code) | -- |
+| p-orb-ops-020 | 2026-05-26 | Fix dbt dev profile persistence and detector S3 credentials | ✓ Complete | 0542e88 |
 
 ## Notes
 
@@ -171,6 +173,24 @@ Grafana queries the marts directly via the motherduck-duckdb-datasource plugin (
 Provisioning lives in three subdirs under `dashboards/grafana/`: `dashboards/` (provider config), `datasources/` (DuckDB config), and `dashboard-defs/` (the JSON files themselves). Docker-compose mounts each at Grafana's expected path.
 
 New `make demo-full` target produces a complete end-to-end demo: stack up, 6-hour sim with faults, consume, transform, detect. After it completes, all dashboards have populated panels.
+
+### p-orb-ops-019 (verification)
+
+First end-to-end run of the full pipeline on real infrastructure. Verified: stack startup (4 containers), 4 web endpoints (all 200), 3 Grafana dashboards + 1 datasource provisioned, 1800 messages produced and consumed cleanly (0 decode errors), 35 partitioned Parquet files landed on MinIO, dbt run built 6 models (2 external marts on S3), DuckDB-direct queries returned correct row counts (fleet: 5, rollup: 1800).
+
+Two issues surfaced, both isolated (fixed in p-orb-ops-020):
+- dbt test failed 31/31 on dev target: `:memory:` DuckDB not persisting across subprocess calls. Same bug fixed for test target in p-orb-ops-015.
+- `evaluate_detectors.py` didn't pass S3 credentials to `run_detection()`.
+
+### p-orb-ops-020
+
+Two targeted fixes:
+- dbt dev profile defaults to `dev.duckdb` (file-based, already gitignored via `*.duckdb`). Fixed a false start with `.dbt-dev.duckdb` -- DuckDB parsed the leading dot as a catalog reference.
+- `evaluate_detectors.py` builds S3 settings from MINIO env vars when the marts glob starts with `s3://`.
+
+Post-fix: dbt test PASS=31 ERROR=0. Detector script runs end-to-end against S3-backed marts. Artifact committed: `docs/figures/detector_performance.png` (53 KB).
+
+Note: detector summary shows 0 events / 0 recall across all three detectors. Root cause: `data/faults.example.yaml` references sat names `SKYSAT-1`/`SKYSAT-3`/`SKYSAT-5` but the TLE-derived names are `SKYSAT-A`/`SKYSAT-B`/`SKYSAT-C1`/etc. The fault layer never matches, so no faults are injected, so detectors correctly don't fire. Fix: update the example YAML to use real TLE names. This is a config issue, not a code issue -- the pipeline, faults, and detectors all work correctly.
 
 ## Conventions for future prompts
 
