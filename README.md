@@ -125,68 +125,127 @@ all three dashboards have populated panels.
 
 ## Design decisions
 
-### Why DuckDB (and not ClickHouse)
+Each choice below is one that has a real alternative worth weighing. The
+rationale is given in the voice of "what I'd say if asked."
 
-ClickHouse is the better production OLAP engine for sustained high-throughput
-queries. But this project's scale is 15 satellites at 1 Hz = 15 msgs/sec.
-DuckDB is embedded, zero-ops, and reads Parquet directly from object storage.
-An interviewer can `make demo-full` on their laptop without provisioning a
-database server. ClickHouse would be the right upgrade if message rate grew
-10-100x; DuckDB's ceiling is higher than this project will hit.
+### Why DuckDB, not ClickHouse
 
-### Why dbt against Parquet (and not streaming SQL)
+At ~15 sats x 1 Hz x weeks of data we have tens of millions of rows, not
+billions. ClickHouse is the right tool when you need clustered, multi-node
+analytic storage; DuckDB is the right tool when a single process can hold
+the working set and read columnar files directly. The architecture isn't
+locked to DuckDB -- marts live as Parquet on object storage, so swapping
+in ClickHouse, DataFusion, or Athena would be a query-layer change, not a
+re-platform. DuckDB also keeps the "runs on an interviewer's laptop"
+promise honest; ClickHouse would require a service to be running.
 
-dbt is batch-native. Streaming SQL (ksqlDB, Flink SQL) would let us compute
-rolling aggregates in real time. But the telemetry archive is Parquet on
-object storage, and the transformations are analytical (aggregations, joins,
-window functions) not event-driven. dbt-duckdb reads the Parquet directly;
-the output marts land back as Parquet. The entire transformation layer is a
-SQL project with version-controlled models, declarative tests, and a
-`dbt run` that an interviewer can invoke without understanding streaming
-infrastructure. Streaming SQL would be the right choice if detection latency
-mattered at the sub-minute level; at the per-minute mart grain it doesn't.
+### Why dbt against Parquet, not streaming SQL
 
-### Per-subsystem detection method justification
+dbt is batch-oriented by design. Trying to make it streaming-aware
+fights the tool. Instead, we treat Parquet on object storage as the
+stream/batch boundary: the consumer batches messages into Parquet files
+at the (sat_id, sim-hour) grain, and dbt runs on a schedule against those
+files. This is the pattern most data teams actually ship with, because it
+keeps the streaming infrastructure simple (just durable transport) and
+the analytical infrastructure simple (just SQL on files).
 
-One method per fault, not one method for all:
+### Why a sim-clock abstraction
 
-- **CUSUM** for capacity fade. The signal is slow drift buried in orbital
-  noise. CUSUM accumulates evidence of a sustained mean shift; Z-scores
-  absorb drift into their standard deviation and miss it.
-- **Cross-channel residual** for stuck sensors. The reading is plausible
-  in isolation; what breaks is the correlation with the heat-balance model.
-  Threshold and Z-score detectors both miss this. The residual between
-  predicted and actual temperature change catches it cleanly.
-- **Threshold + slope** for thermal runaway. The operational limit is
-  known (35 C bus ceiling). ML is not the answer to every problem. The
-  slope check suppresses false positives from normal sunlit warming.
+Every component reads sim-time from a shared `SimClock` instance. Wall
+clock is forbidden downstream. This lets the same producer code drive a
+fast batch run (a week of telemetry in five minutes of wall time) or a
+real-time stream (1 sim-second per 1 wall-second for the demo) without
+code changes elsewhere. The deadline-based scheduling in REALTIME mode
+ensures that work done between ticks (physics, Kafka publish) eats into
+the sleep budget rather than accumulating drift -- same pattern as game
+loops and trading simulators.
 
-The variety is deliberate: it demonstrates method selection, not toolkit
-familiarity.
+### Why fault injection is a layer, not part of physics
 
-### Partitioning scheme rationale
+Faults transform the *observed* telemetry after subsystem step functions
+have computed nominal state. The underlying physics stays clean. This
+matches how real anomalies present: the sensor lies, the cells degrade,
+but the satellite's truth state is whatever it is. Keeping faults as a
+layer also means physics tests stay tight (they don't have to know about
+faults) and fault tests stay tight (they don't have to know about
+physics). The fault YAML doubles as ground-truth labels for detector
+evaluation.
 
-`sat_id=X/date=Y/hour=HH/part-NNNN.parquet` (Hive-style). Defense:
+### Why one detection method per fault
 
-- `sat_id` is the most common filter (per-sat queries dominate ops).
-- `date` + `hour` together give time-pruning for both daily and intra-day
-  queries without the file-count explosion of per-minute partitions.
-- Hive layout is natively understood by DuckDB, Spark, ClickHouse, Athena.
-  No custom reader needed.
+Pragmatic anomaly detection picks the right tool per signal shape. Each
+fault here exercises a different class of detection method on purpose:
 
-### Sim-clock vs wall-clock separation
+- **Battery capacity fade -> CUSUM** on rolling max-SoC. Capacity fade is
+  slow drift in a noisy signal; CUSUM (1950s control theory) was
+  designed for exactly this. Cheap to compute, no training, defensible.
 
-`SimClock` is the single most important architectural decision. Every
-component that needs "what time is it in the sim" reads from `SimClock.now`.
-Wall-clock time (`time.time()`, `datetime.now()`) is forbidden downstream.
+- **Stuck temperature sensor -> cross-channel residual**. A stuck sensor's
+  reading is plausible in isolation; what breaks is its correlation with
+  the heat-balance equation. We compute the predicted dT from the
+  other thermal channels and watch the residual.
 
-This lets the same producer code drive:
-- **FAST mode**: generate a week of telemetry in 5 minutes of wall time.
-- **REALTIME mode**: 1 sim-second per 1 wall-second for the live demo.
+- **Thermal runaway -> threshold + slope**. The operational limit is
+  known; the satellite shouldn't exceed 35 C. A threshold catches this
+  directly. The slope check suppresses false positives from sunlit
+  warming briefly grazing the ceiling. This is the case where ML would
+  be silly -- and that's the design defense.
 
-The separation is enforced by the deadline-based tick scheduler (not naive
-sleep-after-tick), which absorbs work done between ticks so wall-time
-tracks sim-time under load.
+A generic "throw an isolation forest at the telemetry" approach would
+catch some of these and miss others, with no way to explain the misses.
+Three purposeful methods with clear failure modes are easier to operate
+in production than one opaque model.
+
+### Why partition Parquet by (sat_id, date, hour)
+
+Hive-style partitioning encodes filter logic into the directory
+tree itself. DuckDB, Spark, ClickHouse, and Athena all prune partitions
+from path metadata before reading any file content. The two-level
+time partition (date and hour) handles both daily queries ("yesterday's
+data") and intra-day queries ("the past hour"). Going to per-minute
+partitions would explode the file count without filtering benefit;
+omitting hour would make any sub-day query scan a whole day's worth
+of files per sat. Three levels is the sweet spot for this scale.
+
+### Why a "marts as Parquet" architecture, not a single DuckDB file
+
+dbt-duckdb's external materialization writes mart tables back to Parquet
+on object storage. The reason: marts are read by multiple consumers
+(Grafana, the detector runner, possibly future custom frontends). If the
+marts lived inside a single `.duckdb` file, every consumer would need to
+mount that file and only one could write at a time. With Parquet marts on
+S3, every consumer queries the same files independently, and the storage
+layer is the contract.
+
+### Where the thermal model required iteration
+
+The thermal model went through three rounds of parameter refinement,
+each driven by an invariant test failure:
+
+1. The initial array efficiency (0.28, cell-level) was too high for
+   orbit-averaged power. Corrected to 0.15 (end-to-end system
+   efficiency) -- different things.
+2. The first model omitted Earth IR (~100 W continuous in LEO), which
+   is the dominant reason eclipse temperatures don't crash toward
+   deep-space values. Added as a named parameter with citation.
+3. The radiating area assumed the satellite radiates from its full
+   geometric surface; real smallsats wrap most surfaces in MLI
+   blankets that suppress radiation. Corrected to ~1.2 m^2 effective
+   radiator area.
+
+Each correction is documented in the prompt ledger. The pattern: I sized
+parameters from first-principles physics and missed the second-order
+engineering corrections that turn ideal numbers into operational ones.
+The invariant tests caught all three.
+
+### Why no orchestrator (Airflow / Prefect)
+
+For a portfolio project, `make transform` and `make detect` are honest.
+Production would absolutely use an orchestrator -- scheduled dbt runs,
+scheduled detector runs, alert routing, lineage tracking. The
+architecture supports this trivially (every step is a CLI command);
+adding Airflow would be scope creep that doesn't sharpen the signal of
+the data engineering work.
 
 ## Project context
 
