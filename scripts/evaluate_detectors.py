@@ -49,6 +49,25 @@ def main() -> int:
     faults = FaultRegistry.from_yaml(Path(args.faults_yaml))
     settings = _duckdb_settings_from_env() if args.marts_glob.startswith("s3://") else None
     events, stats = run_detection(args.marts_glob, duckdb_settings=settings)
+
+    # Resolve relative offsets: use earliest mart timestamp as proxy for sim start.
+    if any(s.start_offset is not None for s in faults.specs):
+        from datetime import UTC
+
+        import duckdb
+
+        con = duckdb.connect()
+        if settings:
+            for k, v in settings.items():
+                con.execute(f"SET {k} = '{v}'")
+            con.execute("INSTALL httpfs; LOAD httpfs")
+        sim_start = con.execute(
+            f"SELECT min(minute_bucket) FROM read_parquet('{args.marts_glob}')"
+        ).fetchone()[0]
+        if sim_start.tzinfo is None:
+            sim_start = sim_start.replace(tzinfo=UTC)
+        faults = faults.bind_to_sim_start(sim_start)
+
     scorecards = evaluate(events, faults)
 
     print(f"Processed {stats.rows_consumed} rows across {stats.sats_processed} sats", file=sys.stderr)

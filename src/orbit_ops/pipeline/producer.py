@@ -130,6 +130,9 @@ class ConstellationProducer:
 
         Returns final stats.
         """
+        # Resolve relative fault offsets against the actual sim start.
+        self._faults = self._faults.bind_to_sim_start(self._con.now)
+
         try:
             while not self._stop_requested:
                 if max_ticks is not None and self._stats.ticks >= max_ticks:

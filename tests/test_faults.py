@@ -250,3 +250,56 @@ def test_two_faults_on_same_sat_both_apply() -> None:
     # Both faults should have taken effect
     assert out.eps.battery_soc < tr.eps.battery_soc
     assert out.thermal.bus_temperature_k > tr.thermal.bus_temperature_k
+
+
+def test_fault_spec_requires_exactly_one_start_field() -> None:
+    """Schema validation: both or neither is an error at YAML load time."""
+    import tempfile
+
+    both_yaml = """
+faults:
+  - sat_id: "SAT-1"
+    fault_type: "thermal_runaway"
+    start_iso: "2026-05-01T00:00:00+00:00"
+    start_offset: "+00:30:00"
+"""
+    neither_yaml = """
+faults:
+  - sat_id: "SAT-1"
+    fault_type: "thermal_runaway"
+"""
+    for bad in (both_yaml, neither_yaml):
+        with tempfile.NamedTemporaryFile("w", suffix=".yaml", delete=False) as f:
+            f.write(bad)
+            path = Path(f.name)
+        try:
+            with pytest.raises(ValueError, match="exactly one"):
+                FaultRegistry.from_yaml(path)
+        finally:
+            path.unlink()
+
+
+def test_offset_parsing_handles_hms_and_days() -> None:
+    from orbit_ops.sim.faults import _parse_offset
+
+    assert _parse_offset("+00:30:00") == timedelta(minutes=30)
+    assert _parse_offset("+01:00:00") == timedelta(hours=1)
+    assert _parse_offset("+002-12:00:00") == timedelta(days=2, hours=12)
+
+
+def test_bind_to_sim_start_resolves_offsets() -> None:
+    reg = FaultRegistry(specs=[
+        FaultSpec(sat_id="SAT-1", fault_type=FaultType.THERMAL_RUNAWAY,
+                  start_offset="+01:30:00"),
+        FaultSpec(sat_id="SAT-2", fault_type=FaultType.BATTERY_CAPACITY_FADE,
+                  start_iso="2026-05-01T00:00:00+00:00"),  # already absolute
+    ])
+    sim_start = datetime(2026, 5, 26, 20, 0, 0, tzinfo=UTC)
+    bound = reg.bind_to_sim_start(sim_start)
+
+    # Offset spec resolved
+    assert bound.specs[0].start_iso == "2026-05-26T21:30:00+00:00"
+    assert bound.specs[0].start_offset is None
+
+    # Absolute spec untouched
+    assert bound.specs[1].start_iso == "2026-05-01T00:00:00+00:00"

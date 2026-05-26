@@ -3,7 +3,7 @@
 # Each fault has:
 #   sat_id:     satellite name (must match a TLE-derived sat name, e.g. "SKYSAT-A")
 #   fault_type: one of [battery_capacity_fade, stuck_temperature_sensor, thermal_runaway]
-#   start_iso:  sim-time at which the fault becomes active (UTC ISO 8601)
+#   start_offset or start_iso: when the fault activates (exactly one required)
 #   params:     fault-specific parameters (see src/orbit_ops/sim/faults.py)
 #
 # The sat_id values below reference satellites in the current Celestrak
@@ -18,38 +18,36 @@
 #
 # and substitute three names that are present.
 #
+# Fault timing uses start_offset (relative to sim start) by default.
+# Format: "+HH:MM:SS" or "+DDD-HH:MM:SS" for multi-day.
+# Absolute start_iso is also supported if you need a specific UTC time.
+# Exactly one of start_iso or start_offset must be set per fault.
+#
 # Note: parameter scales below are calibrated for demo visibility (6-hour
 # window). Real operational fault injection would use smaller rates that
 # exercise the detectors over days. The detection method choice is
 # independent of these scales; the detectors fire on the *shape* of the
 # signal regardless of magnitude.
-#
-# Note: start_iso values below are set near 2026-05-26 to align with the
-# sim's wall-clock UTC start. If you run this demo significantly later
-# than that, the faults will already have been "active" for a long time,
-# which (for the slow-drift capacity fade) means the fade has already
-# saturated at its floor. Refresh start_iso values to be near the current
-# date for clean demo behavior. Future work: support relative timestamps.
 
 faults:
-  # SKYSAT-A: battery cells degrading at 40% per sim-day
+  # SKYSAT-A: battery cells degrading at 40% per sim-day from sim start
   - sat_id: "SKYSAT-A"
     fault_type: "battery_capacity_fade"
-    start_iso: "2026-05-26T00:00:00+00:00"
+    start_offset: "+00:00:00"
     params:
       fade_rate_per_day: 0.40
       floor: 0.6
 
-  # SKYSAT-C9: temperature sensor freezes 90 minutes after fault start
+  # SKYSAT-C9: temperature sensor freezes 30 minutes in
   - sat_id: "SKYSAT-C9"
     fault_type: "stuck_temperature_sensor"
-    start_iso: "2026-05-26T01:30:00+00:00"
+    start_offset: "+00:30:00"
     params: {}
 
-  # SKYSAT-C13: heater stuck on, 3.5 K/hr bias capping at 40 K above nominal
+  # SKYSAT-C13: heater stuck on, 6 K/hr bias from 1 hour in
   - sat_id: "SKYSAT-C13"
     fault_type: "thermal_runaway"
-    start_iso: "2026-05-26T02:00:00+00:00"
+    start_offset: "+01:00:00"
     params:
-      rate_k_per_hour: 3.5
+      rate_k_per_hour: 6.0
       cap_k: 40.0

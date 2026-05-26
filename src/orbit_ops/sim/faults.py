@@ -32,7 +32,7 @@ Three fault types implemented here:
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 from enum import StrEnum
 from pathlib import Path
 
@@ -48,18 +48,48 @@ class FaultType(StrEnum):
     THERMAL_RUNAWAY = "thermal_runaway"
 
 
+def _parse_offset(s: str) -> timedelta:
+    """Parse '+HH:MM:SS' or '+DDD-HH:MM:SS' into a timedelta.
+
+    Examples:
+        '+01:30:00'      -> 1 hour 30 minutes
+        '+00:05:00'      -> 5 minutes
+        '+002-12:00:00'  -> 2 days 12 hours
+    """
+    if not s.startswith("+"):
+        raise ValueError(f"Offset must start with '+', got {s!r}")
+    body = s[1:]
+    if "-" in body:
+        days_str, _, time_part = body.partition("-")
+        days = int(days_str)
+    else:
+        days = 0
+        time_part = body
+    h, m, sec = time_part.split(":")
+    return timedelta(days=days, hours=int(h), minutes=int(m), seconds=int(sec))
+
+
 @dataclass(frozen=True, slots=True)
 class FaultSpec:
     """Declarative description of one fault. Loaded from YAML."""
 
     sat_id: str
     fault_type: FaultType
-    start_iso: str
-    """Sim-time ISO 8601 UTC. Fault becomes active when sim_time >= start."""
+    start_iso: str | None = None
+    """Absolute sim-time ISO 8601 UTC. Mutually exclusive with start_offset."""
+    start_offset: str | None = None
+    """Relative offset from sim start, format '+HH:MM:SS' or '+DDD-HH:MM:SS'.
+    Mutually exclusive with start_iso. Resolved to absolute time by
+    FaultRegistry.bind_to_sim_start."""
     params: dict[str, float] = field(default_factory=dict)
 
     @property
     def start(self) -> datetime:
+        if self.start_iso is None:
+            raise ValueError(
+                f"FaultSpec for {self.sat_id} has no resolved start time. "
+                f"Call FaultRegistry.bind_to_sim_start() to resolve offsets first."
+            )
         dt = datetime.fromisoformat(self.start_iso)
         if dt.tzinfo is None:
             dt = dt.replace(tzinfo=UTC)
@@ -89,15 +119,54 @@ class FaultRegistry:
             data = yaml.safe_load(f) or {}
         specs: list[FaultSpec] = []
         for entry in data.get("faults", []):
+            has_iso = "start_iso" in entry
+            has_offset = "start_offset" in entry
+            if has_iso == has_offset:
+                raise ValueError(
+                    f"Fault entry for {entry.get('sat_id', '?')!r} must have "
+                    f"exactly one of start_iso or start_offset (got: "
+                    f"start_iso={has_iso}, start_offset={has_offset})"
+                )
             specs.append(
                 FaultSpec(
                     sat_id=entry["sat_id"],
                     fault_type=FaultType(entry["fault_type"]),
-                    start_iso=entry["start_iso"],
+                    start_iso=entry.get("start_iso"),
+                    start_offset=entry.get("start_offset"),
                     params={k: float(v) for k, v in entry.get("params", {}).items()},
                 )
             )
         return cls(specs=specs)
+
+    def bind_to_sim_start(self, sim_start: datetime) -> FaultRegistry:
+        """Resolve relative offsets to absolute start times.
+
+        Returns a new registry with start_offset fields resolved into start_iso.
+        Specs that already have start_iso pass through unchanged. Call this once
+        at producer startup; downstream code reads start_iso via the .start
+        property as usual.
+        """
+        if sim_start.tzinfo is None:
+            raise ValueError("sim_start must be timezone-aware")
+        bound: list[FaultSpec] = []
+        for spec in self.specs:
+            if spec.start_offset is not None:
+                resolved = sim_start + _parse_offset(spec.start_offset)
+                bound.append(
+                    FaultSpec(
+                        sat_id=spec.sat_id,
+                        fault_type=spec.fault_type,
+                        start_iso=resolved.isoformat(),
+                        start_offset=None,
+                        params=dict(spec.params),
+                    )
+                )
+            else:
+                bound.append(spec)
+        return FaultRegistry(
+            specs=bound,
+            _stuck_state=dict(self._stuck_state),
+        )
 
     def active_for(self, sat_id: str, sim_time: datetime) -> list[FaultSpec]:
         out: list[FaultSpec] = []
