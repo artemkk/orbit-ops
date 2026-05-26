@@ -6,9 +6,19 @@ A simulated satellite constellation and the data platform that operates it.
 
 ## Status
 
-🚧 Under active construction. See [docs/PLAN.md](docs/PLAN.md) for the build plan.
+Feature-complete through Sprint 2. See [docs/PLAN.md](docs/PLAN.md) for the
+full build plan and [docs/PROMPT_LEDGER.md](docs/PROMPT_LEDGER.md) for the
+build log.
 
 ## Quick start
+
+```bash
+make demo-full   # full demo: stack + sim + consume + transform + detect
+open http://localhost:3000   # Grafana dashboards
+make stop        # tear down
+```
+
+Or step-by-step:
 
 ```bash
 make demo    # bring up the full stack
@@ -115,13 +125,68 @@ all three dashboards have populated panels.
 
 ## Design decisions
 
-To be filled in as decisions are made and defended. Sections planned:
+### Why DuckDB (and not ClickHouse)
 
-- Why DuckDB (and not ClickHouse)
-- Why dbt against Parquet (and not streaming SQL)
-- Per-subsystem detection method justification
-- Partitioning scheme rationale
-- Sim-clock vs wall-clock separation
+ClickHouse is the better production OLAP engine for sustained high-throughput
+queries. But this project's scale is 15 satellites at 1 Hz = 15 msgs/sec.
+DuckDB is embedded, zero-ops, and reads Parquet directly from object storage.
+An interviewer can `make demo-full` on their laptop without provisioning a
+database server. ClickHouse would be the right upgrade if message rate grew
+10-100x; DuckDB's ceiling is higher than this project will hit.
+
+### Why dbt against Parquet (and not streaming SQL)
+
+dbt is batch-native. Streaming SQL (ksqlDB, Flink SQL) would let us compute
+rolling aggregates in real time. But the telemetry archive is Parquet on
+object storage, and the transformations are analytical (aggregations, joins,
+window functions) not event-driven. dbt-duckdb reads the Parquet directly;
+the output marts land back as Parquet. The entire transformation layer is a
+SQL project with version-controlled models, declarative tests, and a
+`dbt run` that an interviewer can invoke without understanding streaming
+infrastructure. Streaming SQL would be the right choice if detection latency
+mattered at the sub-minute level; at the per-minute mart grain it doesn't.
+
+### Per-subsystem detection method justification
+
+One method per fault, not one method for all:
+
+- **CUSUM** for capacity fade. The signal is slow drift buried in orbital
+  noise. CUSUM accumulates evidence of a sustained mean shift; Z-scores
+  absorb drift into their standard deviation and miss it.
+- **Cross-channel residual** for stuck sensors. The reading is plausible
+  in isolation; what breaks is the correlation with the heat-balance model.
+  Threshold and Z-score detectors both miss this. The residual between
+  predicted and actual temperature change catches it cleanly.
+- **Threshold + slope** for thermal runaway. The operational limit is
+  known (35 C bus ceiling). ML is not the answer to every problem. The
+  slope check suppresses false positives from normal sunlit warming.
+
+The variety is deliberate: it demonstrates method selection, not toolkit
+familiarity.
+
+### Partitioning scheme rationale
+
+`sat_id=X/date=Y/hour=HH/part-NNNN.parquet` (Hive-style). Defense:
+
+- `sat_id` is the most common filter (per-sat queries dominate ops).
+- `date` + `hour` together give time-pruning for both daily and intra-day
+  queries without the file-count explosion of per-minute partitions.
+- Hive layout is natively understood by DuckDB, Spark, ClickHouse, Athena.
+  No custom reader needed.
+
+### Sim-clock vs wall-clock separation
+
+`SimClock` is the single most important architectural decision. Every
+component that needs "what time is it in the sim" reads from `SimClock.now`.
+Wall-clock time (`time.time()`, `datetime.now()`) is forbidden downstream.
+
+This lets the same producer code drive:
+- **FAST mode**: generate a week of telemetry in 5 minutes of wall time.
+- **REALTIME mode**: 1 sim-second per 1 wall-second for the live demo.
+
+The separation is enforced by the deadline-based tick scheduler (not naive
+sleep-after-tick), which absorbs work done between ticks so wall-time
+tracks sim-time under load.
 
 ## Project context
 

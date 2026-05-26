@@ -61,3 +61,6 @@ logs/
 
 # User-local fault config (created from .example.yaml on demand)
 data/faults.yaml
+
+# Interview prep notes (private, not part of the public repo)
+docs/INTERVIEW_PREP.md
