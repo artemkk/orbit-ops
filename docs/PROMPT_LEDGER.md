@@ -45,6 +45,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-025 | 2026-05-26 | Add relative-time support to fault config; permanent timing fix | Partial | 172e0d5 |
 | p-orb-ops-026 | 2026-05-26 | Detector calibration: stuck-sensor 0.3 K, runaway 8 K/hr | Partial (1/3 TP, 0 FP) | 1faeb31 |
 | p-orb-ops-027 | 2026-05-26 | Extend demo to 24h; restore operationally-defensible parameters | ✓ Complete | b6af173 |
+| p-orb-ops-028 | 2026-05-26 | Stage Anki deck and practice regimen (gitignored) | ✓ Complete | d1cc995 |
 
 ## Notes
 
@@ -282,6 +283,10 @@ Result: capacity_fade TP=1 FP=0 (181 min latency), stuck_sensor TP=1 FP=0 (42 mi
 Thermal runaway non-detection: SKYSAT-C13 maxes at 27 C over 24 hours, never reaching the 35 C ceiling. At 3.0 K/hr from +01:00, the 40 K cap is reached around hour 14. The modeled SkySat bus equilibrium is colder than expected in this orbit epoch (max nominal ~15 C sunlit, ~-5 C eclipse). The cap raises it to ~27 C max, still below 35 C. The ceiling is operationally correct; the bus is just cold enough that even a 40 K bias stays below it.
 
 This is a real characteristic of the modeled system, not a bug. The detector correctly reports no event because the temperature never exceeds the operational limit. Interview defense: "the detector works; this orbit happens to keep the bus cold enough that even a significant heater fault doesn't cross the ceiling. A different orbit or a warmer bus equilibrium would trigger it. The unit tests prove the detector fires when the signal crosses the threshold."
+
+### p-orb-ops-028
+
+Personal interview prep materials staged at docs/anki/ (gitignored alongside docs/INTERVIEW_PREP.md). 121-card Anki deck across seven categories (domain, architecture, stack, detection, debugging, process, pitch), import instructions, and a three-phase practice regimen for the weeks leading into the interview.
 
 ## Conventions for future prompts
 
