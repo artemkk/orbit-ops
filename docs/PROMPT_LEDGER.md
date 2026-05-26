@@ -229,9 +229,9 @@ Three deliverables combined:
 
 1. **Capacity-fade fix**: moved all three fault `start_iso` from 2026-05-01 to 2026-05-26 to align with the sim's wall-clock UTC start. Added a comment explaining the staleness risk and that relative timestamps are future work. Result: capacity_fade now fires (TP=1 FP=0), stuck_sensor still fires (TP=1 FP=0). Thermal_runaway regressed to FN=1 because the runaway rate (3.5 K/hr = 0.058 K/min) is below the detector's slope threshold (0.1 K/min). This is a calibration issue for a follow-up — the detector works correctly; the slope check just needs to be matched to the rate.
 
-2. **README design decisions**: filled the placeholder section with five defended subsections: Why DuckDB, Why dbt against Parquet, Per-subsystem detection method justification, Partitioning scheme rationale, Sim-clock vs wall-clock separation. Updated Status from "under construction" to "feature-complete through Sprint 2." Updated Quick Start to lead with `make demo-full`.
+2. **README design decisions**: expanded from initial 5 to full 9 subsections in commit cbcf031: Why DuckDB, Why dbt against Parquet, sim-clock abstraction, fault-injection-as-layer, per-subsystem detection methods, partitioning scheme, marts-as-Parquet, thermal model iteration story, no-orchestrator. Updated Status from "under construction" to "feature-complete through Sprint 2." Updated Quick Start to lead with `make demo-full`.
 
-3. **Interview prep doc**: created `docs/INTERVIEW_PREP.md` (gitignored) with 90-second pitch, anticipated Q&A, things not to volunteer, and demo flow for screen shares. Designed to be spoken from, not read from.
+3. **Interview prep doc**: created `docs/INTERVIEW_PREP.md` (gitignored, verified not in git history) with: AI-question framing with honest talking points; six core Q&A with in-voice answers; study list of ledger entries to internalize vs skim; common technical pushbacks (Kafka vs Redpanda, scaling to 1000 sats, Forward Euler error, temperature derating gap); pre-interview checklist; demo flow for screen shares; 25-second elevator pitch.
 
 Post-fix detector results: capacity_fade TP=1, stuck_sensor TP=1, thermal_runaway FN=1. 0 FP across all. Two of three detectors fire with perfect recall. The third's regression is traced to a known slope-threshold calibration gap.
 
