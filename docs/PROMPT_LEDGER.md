@@ -39,6 +39,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-019 | 2026-05-26 | End-to-end verification: pipeline works, 2 small issues surfaced | Verification (no code) | -- |
 | p-orb-ops-020 | 2026-05-26 | Fix dbt dev profile persistence and detector S3 credentials | ✓ Complete | 0542e88 |
 | p-orb-ops-021 | 2026-05-26 | Repoint example fault config at real TLE sat names; regenerate artifact | ✓ Complete | d225135 |
+| p-orb-ops-022 | 2026-05-26 | Calibrate example faults and stuck-sensor threshold for demo visibility | ✓ Complete | 14fc855 |
 
 ## Notes
 
@@ -208,6 +209,18 @@ All three detectors still report 0 TP because:
 3. Thermal runaway at 2 K/hr needs ~11.5 hrs to reach 35C ceiling from ~12C nominal; 6-hr sim reaches 33.6C.
 
 These are parameter/duration mismatches, not code bugs. The pipeline, faults, and detectors all work correctly. Tuning options for a follow-up: (a) run a longer sim (24hr+), (b) lower detector thresholds, (c) increase fault intensity in the example YAML.
+
+### p-orb-ops-022
+
+Three calibration changes to make detectors fire within the 6-hour demo window:
+
+- `fade_rate_per_day`: 0.02 -> 0.40 in example YAML.
+- `StuckSensorDetector.residual_threshold_k`: 2.0 -> 0.05 default. Calibrated against SkySat thermal mass (99,000 J/K); old value was ~300x the nominal signal floor, new value is ~8x.
+- `thermal_runaway.rate_k_per_hour`: 2.0 -> 3.5 in example YAML.
+
+Post-calibration results: stuck_sensor TP=1 FP=0 (recall 1.00), thermal_runaway TP=1 FP=0 (recall 1.00), capacity_fade TP=0 FP=0 FN=1. Two of three detectors fire cleanly with zero false positives.
+
+Capacity fade non-detection explained: fault start (2026-05-01) is ~25 days before sim start (~2026-05-26). At 0.40/day, fade factor hits its 0.6 floor instantly -- no ongoing drift for CUSUM to detect. Fix for a follow-up: move fault start_iso closer to sim start time, or have the CLI inject faults relative to sim start rather than absolute times.
 
 ## Conventions for future prompts
 
