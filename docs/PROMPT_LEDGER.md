@@ -33,6 +33,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-013 | 2026-05-25 | Streaming layer: Constellation, telemetry schema, Redpanda producer | ✓ Complete | 9530dab |
 | p-orb-ops-014 | 2026-05-25 | Consumer + Parquet writer to MinIO; full pipeline round trip | ✓ Complete | 21345fc |
 | p-orb-ops-015 | 2026-05-25 | dbt-duckdb transformations: raw / staging / marts with tests | ✓ Complete | 0f2f9ea |
+| p-orb-ops-016 | 2026-05-25 | Fault injection layer: capacity fade, stuck sensor, thermal runaway | ✓ Complete | ee3b5d2 |
 
 ## Notes
 
@@ -126,6 +127,20 @@ The `tests/test_dbt_models.py` pytest wrapper builds a tempdir Parquet fixture, 
 Architectural constraint honored: marts are external Parquet files, not rows inside a `.duckdb` database file. Grafana, future custom frontend, anomaly detectors all read the same object-storage layout.
 
 Source tests were removed from `_sources.yml` because dbt-duckdb doesn't resolve Jinja in source `external_location` for test queries. The equivalent coverage is provided by `raw_telemetry`'s model tests, which test the same columns after they pass through the `read_parquet()` call.
+
+### p-orb-ops-016
+
+Fault injection layer. Three fault types implemented, each chosen to exercise a different class of anomaly detection method in the next prompt:
+
+- **Battery capacity fade**: scales reported SoC by a fade factor that grows linearly with elapsed sim-time, capped at a floor. Symptom: SoC ceiling creeps down over many days while orbital dynamics stay the same. Change-point detection territory.
+- **Stuck temperature sensor**: captures `bus_temperature_k` at activation and reports it indefinitely while other thermal channels keep flowing with the underlying physics. Symptom: reading no longer correlated with heat-balance state. Cross-channel residual detection territory.
+- **Thermal runaway**: adds a linearly growing positive temperature bias with configurable rate and cap. Symptom: monotonic excursion past operational envelope. Threshold detection territory.
+
+Architectural choice: faults are a *layer* applied to nominal `TickResult` output, not modifications to subsystem physics. The underlying model stays clean and physically correct; observed telemetry is what diverges. Defense: this matches how real anomalies present -- the sensor lies, the cells degrade, but the satellite's truth state is whatever it is.
+
+Configuration is declarative YAML (`data/faults.yaml`, not committed; example at `data/faults.example.yaml`). Loaded once at producer startup; applied per-tick. `FaultRegistry.from_yaml` returns an empty registry on missing file, so the default behavior with no config is fully nominal.
+
+Ground-truth fault timing is preserved by the YAML; the next prompt will use this as labels for backtesting detectors and producing a confusion matrix for the README.
 
 ## Conventions for future prompts
 
