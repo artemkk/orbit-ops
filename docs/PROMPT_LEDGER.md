@@ -32,6 +32,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-012 | 2026-05-25 | Commit subsystem code, lockfile, README; gitignore ephemeris | ✓ Complete | 043b258 |
 | p-orb-ops-013 | 2026-05-25 | Streaming layer: Constellation, telemetry schema, Redpanda producer | ✓ Complete | 9530dab |
 | p-orb-ops-014 | 2026-05-25 | Consumer + Parquet writer to MinIO; full pipeline round trip | ✓ Complete | 21345fc |
+| p-orb-ops-015 | 2026-05-25 | dbt-duckdb transformations: raw / staging / marts with tests | ✓ Complete | 0f2f9ea |
 
 ## Notes
 
@@ -109,6 +110,22 @@ The data pipeline is now complete end-to-end. New modules:
 Partitioning is Hive-style: `s3://telemetry/sat_id=X/date=YYYY-MM-DD/hour=HH/part-NNNN.parquet`. DuckDB, Spark, ClickHouse, Athena all read this layout natively.
 
 The round-trip test in `test_consumer.py::test_consumer_round_trips_records_via_duckdb` is the bytes-in-equals-bytes-out invariant: N messages produced, N rows queried out of DuckDB with distinct timestamps. The `test_e2e_pipeline.py` integration test runs the full chain against the docker stack and skips cleanly when services aren't available.
+
+### p-orb-ops-015
+
+dbt-duckdb is now wired in. Three layers per the PLAN.md commitment:
+
+- **raw** (`raw_telemetry`): 1:1 view over the Parquet glob via `read_parquet()`, explicit casts, parsed timestamp. The schema contract lives here.
+- **staging** (`stg_geometry`, `stg_eps`, `stg_thermal`): per-subsystem cleanup, per-tick grain, computed columns (position magnitude, orbital speed, ground quadrant, charging flag, thermal regime).
+- **marts** (`sat_minute_rollup`, `fleet_health_snapshot`): aggregated, dashboard-ready. Materialized as external Parquet on object storage so downstream consumers query the same file layout as raw data.
+
+Profile is project-local (`dbt/orbit_ops/profiles.yml`). dbt's test framework is used at every layer: `not_null` on key columns; `accepted_values` for enumerations (ground_quadrant, thermal_regime, health bands); `unique` on `fleet_health_snapshot.sat_id` since each sat appears once. No `dbt_utils` dependency -- built-in tests are enough.
+
+The `tests/test_dbt_models.py` pytest wrapper builds a tempdir Parquet fixture, points dbt at it via env vars, runs `dbt run` + `dbt test`, asserts both succeed. This means SQL regressions surface in the same `pytest` invocation as Python regressions. Marked `@pytest.mark.integration`. Uses a file-based DuckDB (not `:memory:`) so state persists between the run and test subprocess calls.
+
+Architectural constraint honored: marts are external Parquet files, not rows inside a `.duckdb` database file. Grafana, future custom frontend, anomaly detectors all read the same object-storage layout.
+
+Source tests were removed from `_sources.yml` because dbt-duckdb doesn't resolve Jinja in source `external_location` for test queries. The equivalent coverage is provided by `raw_telemetry`'s model tests, which test the same columns after they pass through the `read_parquet()` call.
 
 ## Conventions for future prompts
 
