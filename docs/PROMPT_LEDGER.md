@@ -41,6 +41,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-021 | 2026-05-26 | Repoint example fault config at real TLE sat names; regenerate artifact | ✓ Complete | d225135 |
 | p-orb-ops-022 | 2026-05-26 | Calibrate example faults and stuck-sensor threshold for demo visibility | ✓ Complete | 14fc855 |
 | p-orb-ops-023 | 2026-05-26 | Fix capacity-fade dates; README design decisions; interview prep doc | ✓ Complete | 60c9f41 |
+| p-orb-ops-024 | 2026-05-26 | Lower thermal runaway slope threshold to match calibrated runaway rate | Partial | 03115d7 |
 
 ## Notes
 
@@ -234,6 +235,16 @@ Three deliverables combined:
 3. **Interview prep doc**: created `docs/INTERVIEW_PREP.md` (gitignored, verified not in git history) with: AI-question framing with honest talking points; six core Q&A with in-voice answers; study list of ledger entries to internalize vs skim; common technical pushbacks (Kafka vs Redpanda, scaling to 1000 sats, Forward Euler error, temperature derating gap); pre-interview checklist; demo flow for screen shares; 25-second elevator pitch.
 
 Post-fix detector results: capacity_fade TP=1, stuck_sensor TP=1, thermal_runaway FN=1. 0 FP across all. Two of three detectors fire with perfect recall. The third's regression is traced to a known slope-threshold calibration gap.
+
+### p-orb-ops-024
+
+Lowered `ThermalRunawayDetector.min_positive_slope_k_per_min` from 0.1 to 0.04 K/min. The code fix is independently correct: 0.04 sits between the demo runaway rate (0.058 K/min) and normal sunlit warming (< 0.02 K/min). Detector unit tests pass 9/9.
+
+However, the thermal_runaway detector still shows 0 TP in the demo. Root cause is NOT the slope threshold -- it's the absolute `start_iso` (2026-05-26T02:00) being ~18 hours before the wall-clock sim start (~2026-05-26T20:30). The runaway bias reaches its 40 K cap after 11.4 hours, so by sim start the bias is already at maximum with zero slope. The temperature is above the 35 C ceiling (nominal + 40K = ~52 C) but the slope is ~0 because the bias stopped growing hours ago.
+
+The fundamental issue: absolute start_iso values can't stay aligned with a moving wall-clock sim start. Fix options for next prompt: (a) set thermal_runaway start_iso to within a few hours of the expected sim time, (b) remove the cap or raise it substantially, or (c) implement relative timestamp support in the fault config so faults activate N minutes after sim start.
+
+Score: capacity_fade TP=1 FP=0, stuck_sensor TP=1 FP=0, thermal_runaway TP=0 FP=0 FN=1. Two of three detectors at perfect recall, zero false positives across all three.
 
 ## Conventions for future prompts
 
