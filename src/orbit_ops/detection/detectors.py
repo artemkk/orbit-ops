@@ -200,7 +200,13 @@ class ThermalRunawayDetector:
     temperature_ceiling_c: float = 35.0
     slope_window_minutes: int = 5
     """Window for computing recent dT/dt."""
-    min_positive_slope_k_per_min: float = 0.1
+    min_positive_slope_k_per_min: float = 0.04
+    """Minimum positive slope (K/min) to confirm runaway is ongoing. Calibrated
+    below the demo's runaway rate (0.058 K/min from a 3.5 K/hr bias) while
+    staying above normal sunlit warming, which in the modeled SkySat thermal
+    mass produces slopes well under 0.02 K/min. The slope check exists to
+    suppress false positives from brief transient excursions; it should not
+    gate true monotonic runaway."""
     detector_name: str = "thermal_runaway"
 
     _window: deque[float] = field(default_factory=deque, init=False)
