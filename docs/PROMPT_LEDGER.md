@@ -43,6 +43,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-023 | 2026-05-26 | Fix capacity-fade dates; README design decisions; interview prep doc | ✓ Complete | 60c9f41 |
 | p-orb-ops-024 | 2026-05-26 | Lower thermal runaway slope threshold to match calibrated runaway rate | Partial | 03115d7 |
 | p-orb-ops-025 | 2026-05-26 | Add relative-time support to fault config; permanent timing fix | Partial | 172e0d5 |
+| p-orb-ops-026 | 2026-05-26 | Detector calibration: stuck-sensor 0.3 K, runaway 8 K/hr | Partial (1/3 TP, 0 FP) | 1faeb31 |
 
 ## Notes
 
@@ -256,6 +257,14 @@ Example YAML migrated to offsets. Thermal runaway rate bumped to 6.0 K/hr for fa
 The relative-offset infrastructure works correctly: capacity_fade TP=1 at 119 min latency (realistic, in-window), stuck_sensor TP=1 at 5 min latency. However, stuck_sensor also produced FP=1 on a nominal sat -- the 0.05 K residual threshold (set in p-orb-ops-022) is too aggressive during eclipse transitions. Thermal_runaway still FN=1 -- the 6.0 K/hr rate from +01:00 starts the bias growing, but the detector's slope window needs the temperature to actually cross the 35 C ceiling AND show positive slope, which depends on the bus's nominal temperature (varies with eclipse timing).
 
 Two remaining calibration items for follow-up: (1) raise stuck_sensor residual threshold to ~0.3 K to suppress eclipse-transition FP while still catching held readings, (2) verify thermal_runaway fires by checking SKYSAT-C13's actual temperature trace in the marts.
+
+### p-orb-ops-026
+
+Raised stuck_sensor threshold to 0.3 K (from 0.05) — FP eliminated. Raised thermal runaway to 8 K/hr. Result: capacity_fade TP=1 FP=0 (110 min latency). But stuck_sensor and thermal_runaway both FN=1 again. Root cause diagnosis from mart data:
+
+**Stuck sensor**: the detector's `abs(expected_delta) > 0.1` guard suppresses detection. With 99,000 J/K thermal mass and ~19 W net heat during the stuck period, expected dT = 19 * 60 / 99000 = 0.012 K. Since 0.012 < 0.1, the guard prevents the residual check from even running. The guard was designed to suppress noise when the model isn't predicting movement, but with this thermal mass, even substantial net heat produces sub-0.1 K per-minute dT. Fix: lower the guard to 0.001 or remove it.
+
+**Thermal runaway**: max observed temperature is 34.3 C -- 0.7 C below the 35 C ceiling. The bus sits at ~-6 C (267 K) during eclipse, the 40 K cap raises it to ~34 C. Eclipse timing determines whether the nominal temp is high enough for the bias to cross the ceiling. Fix: lower the ceiling to 30 C (still defensible operationally -- many smallsats target 20-30 C operating range).
 
 ## Conventions for future prompts
 
