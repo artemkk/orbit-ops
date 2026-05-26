@@ -30,6 +30,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-010 | 2026-05-25 | Add Earth IR to thermal model; all tests green | Partial (swing reduced 43.5 K -> 36.2 K, still above 30 K) | uncommitted |
 | p-orb-ops-011 | 2026-05-25 | Reduce thermal radiating area to MLI-effective value | ✓ Complete | afdf3dc |
 | p-orb-ops-012 | 2026-05-25 | Commit subsystem code, lockfile, README; gitignore ephemeris | ✓ Complete | 043b258 |
+| p-orb-ops-013 | 2026-05-25 | Streaming layer: Constellation, telemetry schema, Redpanda producer | ✓ Complete | 9530dab |
 
 ## Notes
 
@@ -80,6 +81,20 @@ The committed plot `docs/figures/orbit_eclipse.png` shows the final result: SoC 
 Cleanup commit. p-orb-ops-008 stopped at a test failure before its commit step; prompts 009-011 then iterated on parameter values and only committed `subsystem_params.py` plus the PNG. The actual implementation files (`subsystems.py`, `test_subsystems.py`, `plot_orbit_eclipse.py`) sat uncommitted on disk for three prompts. Also landed `uv.lock` (should have been in the original scaffold for reproducibility), gitignored `*.bsp` (Skyfield's auto-downloaded ephemeris, ~17 MB binary), and added the README "Telemetry sample" section from p-orb-ops-008's original spec.
 
 Process lesson: when a prompt stops at a failure, its already-written-but-uncommitted files are easy to lose track of across follow-up prompts. Future prompts that fix a stopped predecessor should either (a) include the predecessor's pending commit in their commit step, or (b) explicitly defer it and note the deferral. This wasn't caught for three iterations because the focus was on the parameter values, not the file inventory.
+
+### p-orb-ops-013
+
+The pivot from "satellite simulator" to "data platform." Three new modules:
+
+- `Constellation`: owns N satellites and their EPS/Thermal states. One `tick()` advances everything in lockstep using a shared `SimClock`. Cleanly replaces the loose-collection pattern from earlier prompts.
+- `TelemetryRecord` (in `orbit_ops.pipeline.messages`): the wire schema. Flat JSON, units in field names, one record per (sat_id, tick). This is the contract between the producer and every downstream consumer; changes are deliberate from here on.
+- `ConstellationProducer` + `MessageSink` protocol: the producer is decoupled from the transport. `FakeSink` enables fast unit tests; `KafkaSink` publishes to Redpanda. Same producer code, swap the sink.
+
+Topic: `telemetry.raw`. Key: `sat_id` (enables partition-scaling later). Format: JSON (debuggable with `rpk topic consume`; binary serialization can be a follow-on if we want to demonstrate Avro/schema-registry knowledge, but message rate at 15 sats x 1 Hz doesn't justify it).
+
+Tests: 7 unit tests using `FakeSink` exercise the per-tick logic, message keying, schema completeness, and stop-request behavior. One integration test publishes to a real broker and skips cleanly if `localhost:19092` is unreachable. Registered an `integration` pytest marker.
+
+Added `Constellation.now` as a public property so the producer doesn't need `noqa: SLF001` to access the clock. Also added B008 per-file-ignore for cli.py since `typer.Option()` in defaults is Typer's intended API.
 
 ## Conventions for future prompts
 
