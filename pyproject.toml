@@ -61,9 +61,15 @@ target-version = "py311"
 select = ["E", "F", "I", "N", "UP", "B", "SIM", "RUF"]
 ignore = ["E501"]
 
+[tool.ruff.lint.per-file-ignores]
+"src/orbit_ops/cli.py" = ["B008"]  # typer.Option() in defaults is Typer's intended API
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra --strict-markers"
+markers = [
+    "integration: tests that require external services (Redpanda, MinIO). Skipped if unreachable.",
+]
 
 [tool.mypy]
 python_version = "3.11"
