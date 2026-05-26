@@ -31,6 +31,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-011 | 2026-05-25 | Reduce thermal radiating area to MLI-effective value | ✓ Complete | afdf3dc |
 | p-orb-ops-012 | 2026-05-25 | Commit subsystem code, lockfile, README; gitignore ephemeris | ✓ Complete | 043b258 |
 | p-orb-ops-013 | 2026-05-25 | Streaming layer: Constellation, telemetry schema, Redpanda producer | ✓ Complete | 9530dab |
+| p-orb-ops-014 | 2026-05-25 | Consumer + Parquet writer to MinIO; full pipeline round trip | ✓ Complete | 21345fc |
 
 ## Notes
 
@@ -95,6 +96,19 @@ Topic: `telemetry.raw`. Key: `sat_id` (enables partition-scaling later). Format:
 Tests: 7 unit tests using `FakeSink` exercise the per-tick logic, message keying, schema completeness, and stop-request behavior. One integration test publishes to a real broker and skips cleanly if `localhost:19092` is unreachable. Registered an `integration` pytest marker.
 
 Added `Constellation.now` as a public property so the producer doesn't need `noqa: SLF001` to access the clock. Also added B008 per-file-ignore for cli.py since `typer.Option()` in defaults is Typer's intended API.
+
+### p-orb-ops-014
+
+The data pipeline is now complete end-to-end. New modules:
+
+- `parquet_schema.py`: PyArrow schema derived from `TelemetryRecord` via dataclass introspection. Built once at import, reused for every file. Schema drift causes loud crashes -- intentional. The `_TYPE_MAP` is narrow on purpose; an unknown field type fails fast and forces a deliberate decision.
+- `storage.py`: S3-compatible writer. `S3ParquetWriter` for MinIO/R2/S3 (same code, only endpoint differs), `LocalParquetWriter` for tests against a tempdir.
+- `batcher.py`: `ParquetBatcher` owns per-partition in-memory buffers, keyed by `(sat_id, sim-date, sim-hour)`. Flush triggers: (a) hour rollover for a sat (primary), (b) max-rows safety net, (c) explicit `flush_all` on shutdown. All decisions are sim-time based; wall-clock is not consulted, so file boundaries are stable in FAST mode and REALTIME mode alike.
+- `consumer.py`: `TelemetryConsumer` with `MessageSource` protocol. `FakeSource` for unit tests, `KafkaSource` for production. Mirrors the producer's structure exactly.
+
+Partitioning is Hive-style: `s3://telemetry/sat_id=X/date=YYYY-MM-DD/hour=HH/part-NNNN.parquet`. DuckDB, Spark, ClickHouse, Athena all read this layout natively.
+
+The round-trip test in `test_consumer.py::test_consumer_round_trips_records_via_duckdb` is the bytes-in-equals-bytes-out invariant: N messages produced, N rows queried out of DuckDB with distinct timestamps. The `test_e2e_pipeline.py` integration test runs the full chain against the docker stack and skips cleanly when services aren't available.
 
 ## Conventions for future prompts
 
