@@ -47,6 +47,7 @@ After a prompt finishes, append a row to the table and (if substantive) a short 
 | p-orb-ops-027 | 2026-05-26 | Extend demo to 24h; restore operationally-defensible parameters | ✓ Complete | b6af173 |
 | p-orb-ops-028 | 2026-05-26 | Stage Anki deck and practice regimen (gitignored) | ✓ Complete | d1cc995 |
 | p-orb-ops-029 | 2026-05-26 | Save revised study plan to docs/STUDY_PLAN.md (gitignored) | ✓ Complete | 5b2eaa9 |
+| p-orb-ops-030 | 2026-05-27 | Stage drill deck for articulation practice | ✓ Complete | n/a (no code change) |
 
 ## Notes
 
@@ -292,6 +293,10 @@ Personal interview prep materials staged at docs/anki/ (gitignored alongside doc
 ### p-orb-ops-029
 
 Personal study plan saved to docs/STUDY_PLAN.md (gitignored). Replaces earlier multi-tier prep plans. Lives on disk only alongside docs/INTERVIEW_PREP.md and docs/anki/. The plan focuses on four leverage points: daily Anki with verbal recall, project-doc reading, hands-on demo runs, verbal articulation drills. Cuts preemptive reading of external tool docs and domain primers as low-yield.
+
+### p-orb-ops-030
+
+Added a 30-card drill deck to docs/anki/ for Stage 2 articulation practice. Distinct from the original 121-card recall deck: front prompts a 60-second monologue on a topic; back is a checklist of points you should have hit. Five categories: components, concepts, choices, walkthroughs, interview anecdotes. Companion README explains usage and cadence — meant for 2-3 sessions per week starting week 3 of prep, not daily.
 
 ## Conventions for future prompts
 
